@@ -180,6 +180,14 @@ export default function PhotoGallery() {
                   format="auto"
                   loading="eager"
                   onLoad={() => handleThumbnailLoad(photo.id)}
+                  onTouchStart={(e) => {
+                    // 防止長按下載
+                    e.preventDefault();
+                  }}
+                  onContextMenu={(e) => {
+                    // 防止右鍵選單
+                    e.preventDefault();
+                  }}
                 />
               </div>
               {photo.description && (
@@ -227,6 +235,14 @@ export default function PhotoGallery() {
                 quality="auto"
                 format="auto"
                 onLoad={handleImageLoad}
+                onTouchStart={(e) => {
+                  // 防止長按下載
+                  e.preventDefault();
+                }}
+                onContextMenu={(e) => {
+                  // 防止右鍵選單
+                  e.preventDefault();
+                }}
               />
               {selectedPhoto.description && (
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white/80 to-transparent backdrop-blur-sm">
