@@ -43,7 +43,7 @@ export default function Home() {
 
   return (
     <main className="fixed inset-0 w-screen h-screen overflow-hidden">
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full overflow-hidden">
         {loading ? (
           <div className="w-full h-full bg-gray-100 animate-pulse" />
         ) : thumbnailPhoto ? (
@@ -68,7 +68,7 @@ export default function Home() {
             sizes="100vw"
           />
         )}
-        <div className="absolute bottom-0 left-0 right-0 w-full">
+        <div className="absolute bottom-0 left-0 right-0 w-full overflow-hidden">
           <div className="relative w-full">
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/20 to-transparent" style={{ height: 'calc(100% + 20px)', top: '-20px' }} />
             <div className="relative p-8 pb-[calc(env(safe-area-inset-bottom)+6rem)] w-full pointer-events-none">
