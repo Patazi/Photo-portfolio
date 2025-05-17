@@ -71,7 +71,7 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 right-0">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/20 to-transparent" style={{ height: 'calc(100% + 20px)', top: '-20px' }} />
-            <div className="relative p-8">
+            <div className="relative p-8 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
               <p className="text-2xl md:text-3xl mb-2 font-['Playfair_Display'] italic tracking-wide text-white drop-shadow-lg">
                 Fiat lux, et per lentem lucem persequor.
               </p>
