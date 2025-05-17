@@ -45,6 +45,9 @@ export async function GET(request: Request) {
       const pathParts = resource.public_id.split('/');
       const folder = pathParts.length > 1 ? pathParts[1] : 'uncategorized';
       
+      // 保持原始 public_id 不變，因為這是 Cloudinary 的實際路徑
+      const publicId = resource.public_id;
+      
       console.log('Photo details:', {
         public_id: resource.public_id,
         folder: folder,
@@ -52,8 +55,8 @@ export async function GET(request: Request) {
       });
       
       return {
-        id: resource.public_id,
-        publicId: resource.public_id,
+        id: publicId,
+        publicId: publicId,
         alt: resource.public_id.split('/').pop()?.replace(/-/g, ' ') || '',
         category: folder,
         description: resource.context?.description || '',
