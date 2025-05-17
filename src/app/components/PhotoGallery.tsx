@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { CldImage } from 'next-cloudinary';
+import { usePortfolio } from '../context/PortfolioContext';
 
 interface Photo {
   id: string;
@@ -16,16 +17,20 @@ interface Photo {
 }
 
 export default function PhotoGallery() {
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const { photos, setPhotos, selectedCategory, setSelectedCategory } = usePortfolio();
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isSpinnerVisible, setIsSpinnerVisible] = useState(false);
 
   useEffect(() => {
     const fetchPhotos = async () => {
+      // 如果已經有照片，直接返回
+      if (photos.length > 0) {
+        return;
+      }
+
       try {
         const response = await fetch('/api/photos');
         if (!response.ok) {
@@ -39,7 +44,7 @@ export default function PhotoGallery() {
     };
 
     fetchPhotos();
-  }, []);
+  }, [photos.length, setPhotos]);
 
   // Get unique categories, filtering out undefined and Thumbnail
   const categories = ['all', ...new Set(photos

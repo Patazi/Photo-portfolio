@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CldImage } from "next-cloudinary";
+import { useThumbnail } from "./context/ThumbnailContext";
 
 interface ThumbnailPhoto {
   publicId: string;
@@ -11,11 +12,17 @@ interface ThumbnailPhoto {
 }
 
 export default function Home() {
-  const [thumbnailPhoto, setThumbnailPhoto] = useState<ThumbnailPhoto | null>(null);
+  const { thumbnailPhoto, setThumbnailPhoto } = useThumbnail();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchThumbnail = async () => {
+      // 如果已經有 thumbnail 照片，直接返回
+      if (thumbnailPhoto) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await fetch('/api/photos?folder=Thumbnail');
         if (!response.ok) {
@@ -35,7 +42,7 @@ export default function Home() {
     };
 
     fetchThumbnail();
-  }, []);
+  }, [thumbnailPhoto, setThumbnailPhoto]);
 
   return (
     <main className="fixed inset-0 w-screen h-screen">
