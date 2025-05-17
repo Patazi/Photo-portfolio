@@ -30,6 +30,7 @@ export default function PhotoGallery() {
   const [isLoading, setIsLoading] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isSpinnerVisible, setIsSpinnerVisible] = useState(false);
+  const [shouldAnimate, setShouldAnimate] = useState(true);
 
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -71,6 +72,7 @@ export default function PhotoGallery() {
     setIsLoading(!isAlreadyLoaded);
     setIsSpinnerVisible(!isAlreadyLoaded);
     setIsImageLoaded(isAlreadyLoaded);
+    setShouldAnimate(!isAlreadyLoaded);
     setSelectedPhoto(photo);
   };
 
@@ -181,7 +183,9 @@ export default function PhotoGallery() {
                 src={selectedPhoto.publicId}
                 alt={selectedPhoto.alt}
                 fill
-                className={`object-contain transition-all duration-700 ease-out ${
+                className={`object-contain transition-all ${
+                  shouldAnimate ? 'duration-1000 ease-out' : 'duration-0'
+                } ${
                   isImageLoaded ? 'opacity-100' : 'opacity-0'
                 }`}
                 sizes="100vw"

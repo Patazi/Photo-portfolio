@@ -12,37 +12,15 @@ interface ThumbnailPhoto {
 }
 
 export default function Home() {
-  const { thumbnailPhoto, setThumbnailPhoto } = useThumbnail();
+  const { thumbnailPhoto } = useThumbnail();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchThumbnail = async () => {
-      // 如果已經有 thumbnail 照片，直接返回
-      if (thumbnailPhoto) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/photos?folder=Thumbnail');
-        if (!response.ok) {
-          throw new Error('Failed to fetch thumbnail');
-        }
-        const data = await response.json();
-        if (data.photos && data.photos.length > 0) {
-          // Randomly select one photo from the Thumbnail folder
-          const randomIndex = Math.floor(Math.random() * data.photos.length);
-          setThumbnailPhoto(data.photos[randomIndex]);
-        }
-      } catch (error) {
-        console.error('Error fetching thumbnail:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchThumbnail();
-  }, [thumbnailPhoto, setThumbnailPhoto]);
+    // 如果已經有 thumbnail 照片，直接設置 loading 為 false
+    if (thumbnailPhoto) {
+      setLoading(false);
+    }
+  }, [thumbnailPhoto]);
 
   return (
     <main className="fixed inset-0 w-screen h-screen">
