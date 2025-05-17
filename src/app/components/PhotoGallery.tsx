@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CldImage } from 'next-cloudinary';
 import { usePortfolio } from '../context/PortfolioContext';
 
@@ -33,6 +33,7 @@ export default function PhotoGallery() {
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const [loadedThumbnails, setLoadedThumbnails] = useState<Set<string>>(new Set());
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const hasLoadedPhotos = useRef(false);
 
   // 禁用右鍵選單和拖拽
   useEffect(() => {
@@ -55,7 +56,7 @@ export default function PhotoGallery() {
 
   useEffect(() => {
     const fetchPhotos = async () => {
-      if (photos.length > 0) {
+      if (photos.length > 0 || hasLoadedPhotos.current) {
         return;
       }
 
@@ -66,6 +67,7 @@ export default function PhotoGallery() {
         }
         const data = await response.json();
         setPhotos(data.photos);
+        hasLoadedPhotos.current = true;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load photos');
       }
@@ -81,34 +83,31 @@ export default function PhotoGallery() {
       category !== undefined && category.toLowerCase() !== 'thumbnail'
     ))];
 
-  // Filter photos by category and exclude Thumbnail
-  const filteredPhotos = selectedCategory === 'all'
-    ? photos.filter(photo => photo.category?.toLowerCase() !== 'thumbnail')
-    : photos.filter(photo => photo.category === selectedCategory);
-
   const handlePhotoClick = (photo: Photo) => {
-    const isAlreadyLoaded = loadedFullSizePhotos.has(photo.id);
-    setIsLoading(!isAlreadyLoaded);
-    setIsSpinnerVisible(!isAlreadyLoaded);
-    setIsImageLoaded(isAlreadyLoaded);
-    setShouldAnimate(!isAlreadyLoaded);
     setSelectedPhoto(photo);
+    setIsLoading(true);
+    setIsSpinnerVisible(true);
+    setIsImageLoaded(false);
+    setShouldAnimate(true);
   };
 
   const handleImageLoad = () => {
-    if (selectedPhoto) {
-      addLoadedFullSizePhoto(selectedPhoto.id);
-    }
+    setIsImageLoaded(true);
     setIsLoading(false);
     setTimeout(() => {
       setIsSpinnerVisible(false);
-      setIsImageLoaded(true);
-    }, 300);
+    }, 500);
   };
 
   const handleThumbnailLoad = (photoId: string) => {
     setLoadedThumbnails(prev => new Set([...prev, photoId]));
   };
+
+  // Filter photos based on selected category
+  const filteredPhotos = photos.filter(photo => 
+    (selectedCategory === 'all' || photo.category === selectedCategory) &&
+    photo.category?.toLowerCase() !== 'thumbnail'
+  );
 
   if (error) {
     return (
