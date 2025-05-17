@@ -18,7 +18,7 @@ export default function Home() {
   }, [thumbnailPhoto]);
 
   return (
-    <main className="fixed inset-0 w-screen h-screen">
+    <main className="fixed inset-0 w-screen h-screen overflow-hidden">
       <div className="relative w-full h-full">
         {loading ? (
           <div className="w-full h-full bg-gray-100 animate-pulse" />
