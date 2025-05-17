@@ -32,8 +32,8 @@ export default function Contact() {
 
   return (
     <div className="fixed inset-0 bg-[#fafafa]">
-      <div className="max-w-xl mx-auto px-4 py-12 mt-24">
-        <h2 className="text-3xl font-bold mb-12 text-center text-gray-900">Contact</h2>
+      <div className="max-w-xl mx-auto px-4 py-12">
+        <h2 className="text-3xl font-bold mb-12 text-center text-gray-900 mt-24">Contact</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 bg-white p-8 rounded-lg shadow-lg">
           <label className="flex flex-col gap-2">
             <span className="font-semibold text-gray-900">Name</span>
