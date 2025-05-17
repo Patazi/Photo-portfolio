@@ -20,6 +20,7 @@ export default function PhotoGallery() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -49,6 +50,17 @@ export default function PhotoGallery() {
   const filteredPhotos = selectedCategory === 'all'
     ? photos.filter(photo => photo.category?.toLowerCase() !== 'thumbnail')
     : photos.filter(photo => photo.category === selectedCategory);
+
+  // Add this function to handle photo selection
+  const handlePhotoClick = (photo: Photo) => {
+    setIsLoading(true);
+    setSelectedPhoto(photo);
+  };
+
+  // Add this function to handle image load
+  const handleImageLoad = () => {
+    setIsLoading(false);
+  };
 
   if (error) {
     return (
@@ -89,7 +101,7 @@ export default function PhotoGallery() {
               className={`overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 ${
                 isPortrait ? 'md:col-span-1 md:row-span-2' : ''
               }`}
-              onClick={() => setSelectedPhoto(photo)}
+              onClick={() => handlePhotoClick(photo)}
             >
               <div 
                 className="relative w-full" 
@@ -133,6 +145,11 @@ export default function PhotoGallery() {
               ✕
             </button>
             <div className="relative w-full h-full max-w-7xl max-h-[calc(100vh-2rem)]">
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10">
+                  <div className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                </div>
+              )}
               <CldImage
                 src={selectedPhoto.publicId}
                 alt={selectedPhoto.alt}
@@ -142,6 +159,7 @@ export default function PhotoGallery() {
                 priority
                 quality="auto"
                 format="auto"
+                onLoad={handleImageLoad}
               />
               {selectedPhoto.description && (
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white/80 to-transparent backdrop-blur-sm">
