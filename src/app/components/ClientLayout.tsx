@@ -83,8 +83,8 @@ function ClientLayoutContent({
       <div className={`transition-opacity duration-[3000ms] ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
         <div className="min-h-screen bg-white">
           <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-            isScrolled ? 'h-10 bg-white/80 backdrop-blur-md shadow-sm' : 'h-24 bg-white rounded-b-3xl'
-          }`}>
+            isScrolled ? 'h-10 bg-white/60 backdrop-blur-md shadow-sm' : 'h-24 bg-white/60 backdrop-blur-md'
+          } ${isPortfolioPage ? 'rounded-b-xl' : 'rounded-b-xl'}`}>
             <div className="max-w-7xl mx-auto px-4 h-full relative">
               <div className="h-full flex items-center justify-between">
                 <Link 
