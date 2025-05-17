@@ -53,7 +53,7 @@ export default function Home() {
               Fiat lux, et per lentem lucem persequor.
             </p>
             <p className="text-lg md:text-xl text-gray-200">
-              "Let there be light, and through the lens I pursue it."
+              &ldquo;Let there be light, and through the lens I pursue it.&rdquo;
             </p>
           </div>
           <div className="flex gap-4">
