@@ -41,6 +41,7 @@ html, body {
 
 body {
   background-color: #ffffff;
+  position: relative;
 }
 
 /* 添加平滑滾動 */
@@ -80,6 +81,10 @@ html {
 }
 
 .no-scroll {
-  overflow: hidden;
+  overflow: hidden !important;
   height: 100vh;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
 }
