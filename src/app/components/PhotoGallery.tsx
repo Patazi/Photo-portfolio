@@ -159,7 +159,10 @@ export default function PhotoGallery() {
               <div 
                 className="relative w-full" 
                 style={{ 
-                  aspectRatio: isPortrait ? '2/3' : '4/3'
+                  aspectRatio: isPortrait ? '2/3' : '4/3',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  WebkitTouchCallout: 'none'
                 }}
               >
                 <div className={`absolute inset-0 bg-gray-100 transition-opacity duration-500 ${
@@ -186,6 +189,14 @@ export default function PhotoGallery() {
                   }}
                   onContextMenu={(e) => {
                     // 防止右鍵選單
+                    e.preventDefault();
+                  }}
+                  onDragStart={(e) => {
+                    // 防止拖拽
+                    e.preventDefault();
+                  }}
+                  onSelect={(e) => {
+                    // 防止選擇
                     e.preventDefault();
                   }}
                 />
@@ -242,6 +253,19 @@ export default function PhotoGallery() {
                 onContextMenu={(e) => {
                   // 防止右鍵選單
                   e.preventDefault();
+                }}
+                onDragStart={(e) => {
+                  // 防止拖拽
+                  e.preventDefault();
+                }}
+                onSelect={(e) => {
+                  // 防止選擇
+                  e.preventDefault();
+                }}
+                style={{
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  WebkitTouchCallout: 'none'
                 }}
               />
               {selectedPhoto.description && (
