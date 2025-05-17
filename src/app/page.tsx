@@ -2,12 +2,28 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { CldImage } from "next-cloudinary";
 import { useThumbnail } from "./context/ThumbnailContext";
 
 export default function Home() {
   const { thumbnailPhoto } = useThumbnail();
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // 檢查是否為手機版
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // 初始檢查
+    checkMobile();
+
+    // 監聽視窗大小變化
+    window.addEventListener('resize', checkMobile);
+
+    // 清理事件監聽器
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     // 如果已經有 thumbnail 照片，直接設置 loading 為 false
@@ -16,19 +32,31 @@ export default function Home() {
     }
   }, [thumbnailPhoto]);
 
+  // 獲取當前要顯示的照片URL
+  const getThumbnailUrl = () => {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const imageName = isMobile ? 'vertical' : 'horizontal';
+    const url = `https://res.cloudinary.com/${cloudName}/image/upload/portfolio/Thumbnail/${imageName}`;
+    console.log('Loading thumbnail URL:', url);
+    return url;
+  };
+
   return (
     <main className="fixed inset-0 w-screen h-screen overflow-hidden">
       <div className="relative w-full h-full">
         {loading ? (
           <div className="w-full h-full bg-gray-100 animate-pulse" />
         ) : thumbnailPhoto ? (
-          <CldImage
-            src={thumbnailPhoto.publicId}
+          <Image
+            src={getThumbnailUrl()}
             alt="Background showcase"
             fill
             className="object-cover"
             priority
             sizes="100vw"
+            onError={(error) => {
+              console.error('Error loading image:', error);
+            }}
           />
         ) : (
           <Image
@@ -42,11 +70,6 @@ export default function Home() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4">
-            <span className="text-white drop-shadow-lg">Welcome to Pearce Lee</span>
-            <br />
-            <span className="text-white drop-shadow-lg">Photography</span>
-          </h1>
           <div className="mb-4">
             <p className="text-2xl md:text-3xl mb-2 font-['Playfair_Display'] italic tracking-wide text-white drop-shadow-lg">
               Fiat lux, et per lentem lucem persequor.
