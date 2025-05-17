@@ -17,6 +17,8 @@ interface PortfolioContextType {
   setPhotos: (photos: Photo[]) => void;
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
+  loadedFullSizePhotos: Set<string>;
+  addLoadedFullSizePhoto: (photoId: string) => void;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -24,13 +26,20 @@ const PortfolioContext = createContext<PortfolioContextType | undefined>(undefin
 export function PortfolioProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [loadedFullSizePhotos, setLoadedFullSizePhotos] = useState<Set<string>>(new Set());
+
+  const addLoadedFullSizePhoto = (photoId: string) => {
+    setLoadedFullSizePhotos(prev => new Set([...prev, photoId]));
+  };
 
   return (
     <PortfolioContext.Provider value={{ 
       photos, 
       setPhotos, 
       selectedCategory, 
-      setSelectedCategory 
+      setSelectedCategory,
+      loadedFullSizePhotos,
+      addLoadedFullSizePhoto
     }}>
       {children}
     </PortfolioContext.Provider>

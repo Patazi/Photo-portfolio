@@ -17,7 +17,14 @@ interface Photo {
 }
 
 export default function PhotoGallery() {
-  const { photos, setPhotos, selectedCategory, setSelectedCategory } = usePortfolio();
+  const { 
+    photos, 
+    setPhotos, 
+    selectedCategory, 
+    setSelectedCategory,
+    loadedFullSizePhotos,
+    addLoadedFullSizePhoto
+  } = usePortfolio();
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,14 +67,18 @@ export default function PhotoGallery() {
 
   // Add this function to handle photo selection
   const handlePhotoClick = (photo: Photo) => {
-    setIsLoading(true);
-    setIsSpinnerVisible(true);
-    setIsImageLoaded(false);
+    const isAlreadyLoaded = loadedFullSizePhotos.has(photo.id);
+    setIsLoading(!isAlreadyLoaded);
+    setIsSpinnerVisible(!isAlreadyLoaded);
+    setIsImageLoaded(isAlreadyLoaded);
     setSelectedPhoto(photo);
   };
 
   // Add this function to handle image load
   const handleImageLoad = () => {
+    if (selectedPhoto) {
+      addLoadedFullSizePhoto(selectedPhoto.id);
+    }
     setIsLoading(false);
     // Add a small delay before hiding the spinner
     setTimeout(() => {
