@@ -31,10 +31,30 @@ export default function PhotoGallery() {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isSpinnerVisible, setIsSpinnerVisible] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(true);
+  const [loadedThumbnails, setLoadedThumbnails] = useState<Set<string>>(new Set());
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // 禁用右鍵選單和拖拽
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    const handleDragStart = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('dragstart', handleDragStart);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('dragstart', handleDragStart);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchPhotos = async () => {
-      // 如果已經有照片，直接返回
       if (photos.length > 0) {
         return;
       }
@@ -66,7 +86,6 @@ export default function PhotoGallery() {
     ? photos.filter(photo => photo.category?.toLowerCase() !== 'thumbnail')
     : photos.filter(photo => photo.category === selectedCategory);
 
-  // Add this function to handle photo selection
   const handlePhotoClick = (photo: Photo) => {
     const isAlreadyLoaded = loadedFullSizePhotos.has(photo.id);
     setIsLoading(!isAlreadyLoaded);
@@ -76,17 +95,19 @@ export default function PhotoGallery() {
     setSelectedPhoto(photo);
   };
 
-  // Add this function to handle image load
   const handleImageLoad = () => {
     if (selectedPhoto) {
       addLoadedFullSizePhoto(selectedPhoto.id);
     }
     setIsLoading(false);
-    // Add a small delay before hiding the spinner
     setTimeout(() => {
       setIsSpinnerVisible(false);
       setIsImageLoaded(true);
     }, 300);
+  };
+
+  const handleThumbnailLoad = (photoId: string) => {
+    setLoadedThumbnails(prev => new Set([...prev, photoId]));
   };
 
   if (error) {
@@ -104,7 +125,10 @@ export default function PhotoGallery() {
         {categories.map(category => (
           <button
             key={category}
-            onClick={() => setSelectedCategory(category)}
+            onClick={() => {
+              setSelectedCategory(category);
+              setIsInitialLoad(false);
+            }}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
               selectedCategory === category
                 ? 'bg-gray-900 text-white'
@@ -117,10 +141,11 @@ export default function PhotoGallery() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {filteredPhotos.map((photo) => {
-          // Calculate aspect ratio
+        {filteredPhotos.map((photo, index) => {
           const aspectRatio = photo.width / photo.height;
           const isPortrait = aspectRatio < 1;
+          const isThumbnailLoaded = loadedThumbnails.has(photo.id);
+          const animationDelay = isInitialLoad ? `${index * 0.1}s` : '0s';
           
           return (
             <div
@@ -128,6 +153,10 @@ export default function PhotoGallery() {
               className={`overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 ${
                 isPortrait ? 'md:col-span-1 md:row-span-2' : ''
               }`}
+              style={{
+                opacity: 0,
+                animation: `fadeInUp 0.6s ease-out ${animationDelay} forwards`
+              }}
               onClick={() => handlePhotoClick(photo)}
             >
               <div 
@@ -136,16 +165,24 @@ export default function PhotoGallery() {
                   aspectRatio: isPortrait ? '2/3' : '4/3'
                 }}
               >
+                <div className={`absolute inset-0 bg-gray-100 transition-opacity duration-500 ${
+                  isThumbnailLoaded ? 'opacity-0' : 'opacity-100'
+                }`} />
                 <CldImage
                   src={photo.publicId}
                   alt={photo.alt}
                   fill
-                  className={`object-cover ${isPortrait ? 'scale-[1.15]' : ''}`}
+                  className={`object-cover transition-all duration-500 ${
+                    isPortrait ? 'scale-[1.15]' : ''
+                  } ${
+                    isThumbnailLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   crop="fill"
                   quality="auto"
                   format="auto"
                   loading="eager"
+                  onLoad={() => handleThumbnailLoad(photo.id)}
                 />
               </div>
               {photo.description && (
@@ -203,6 +240,19 @@ export default function PhotoGallery() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </>
   );
 } 
