@@ -21,9 +21,7 @@ export default function PhotoGallery() {
     photos, 
     setPhotos, 
     selectedCategory, 
-    setSelectedCategory,
-    loadedFullSizePhotos,
-    addLoadedFullSizePhoto
+    setSelectedCategory
   } = usePortfolio();
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
