@@ -37,16 +37,19 @@ html, body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
   background-color: #ffffff;
   position: relative;
+  overscroll-behavior: none;
 }
 
 /* 添加平滑滾動 */
 html {
   scroll-behavior: smooth;
+  overscroll-behavior: none;
 }
 
 /* 添加現代化的按鈕樣式 */
@@ -78,6 +81,7 @@ html {
   overflow-y: auto;
   min-height: 100vh;
   padding-bottom: calc(env(safe-area-inset-bottom) + 6rem);
+  -webkit-overflow-scrolling: touch;
 }
 
 .no-scroll {
@@ -87,4 +91,7 @@ html {
   width: 100%;
   top: 0;
   left: 0;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: none;
+  touch-action: none;
 }
