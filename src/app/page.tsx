@@ -70,13 +70,16 @@ export default function Home() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-          <div className="mb-4">
-            <p className="text-2xl md:text-3xl mb-2 font-['Playfair_Display'] italic tracking-wide text-white drop-shadow-lg">
-              Fiat lux, et per lentem lucem persequor.
-            </p>
-            <p className="text-lg md:text-xl text-gray-200">
-              &ldquo;Let there be light, and through the lens I pursue it.&rdquo;
-            </p>
+          <div className="mb-4 relative">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/20 to-transparent" />
+            <div className="relative">
+              <p className="text-2xl md:text-3xl mb-2 font-['Playfair_Display'] italic tracking-wide text-white drop-shadow-lg">
+                Fiat lux, et per lentem lucem persequor.
+              </p>
+              <p className="text-lg md:text-xl text-gray-200">
+                &ldquo;Let there be light, and through the lens I pursue it.&rdquo;
+              </p>
+            </div>
           </div>
         </div>
       </div>
