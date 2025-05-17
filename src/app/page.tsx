@@ -68,11 +68,10 @@ export default function Home() {
             sizes="100vw"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-          <div className="mb-4 relative">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/20 to-transparent" />
-            <div className="relative">
+        <div className="absolute bottom-0 left-0 right-0">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/20 to-transparent" style={{ height: 'calc(100% + 20px)', top: '-20px' }} />
+            <div className="relative p-8">
               <p className="text-2xl md:text-3xl mb-2 font-['Playfair_Display'] italic tracking-wide text-white drop-shadow-lg">
                 Fiat lux, et per lentem lucem persequor.
               </p>
