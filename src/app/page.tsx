@@ -43,12 +43,19 @@ export default function Home() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 text-gradient">
-            Welcome to Pearce Lee Photography
+          <h1 className="text-4xl md:text-6xl font-bold mb-4">
+            <span className="text-white drop-shadow-lg">Welcome to Pearce Lee</span>
+            <br />
+            <span className="text-white drop-shadow-lg">Photography</span>
           </h1>
-          <p className="text-lg md:text-xl mb-8 text-gray-200">
-            Capturing moments that tell your story
-          </p>
+          <div className="mb-8">
+            <p className="text-2xl md:text-3xl mb-2 font-['Playfair_Display'] italic tracking-wide text-white drop-shadow-lg">
+              Fiat lux, et per lentem lucem persequor.
+            </p>
+            <p className="text-lg md:text-xl text-gray-200">
+              "Let there be light, and through the lens I pursue it."
+            </p>
+          </div>
           <div className="flex gap-4">
             <Link href="/portfolio" className="btn bg-sky-500/20 backdrop-blur-sm text-white hover:bg-sky-500/30">
               View Portfolio
