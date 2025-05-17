@@ -1,12 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
     name: '',
     message: ''
   });
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      setIsScrolled(scrollPosition > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +42,7 @@ export default function Contact() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#fafafa]">
+    <div className="fixed inset-0 bg-[#fafafa] no-scroll">
       <div className="max-w-xl mx-auto px-4 py-12">
         <h2 className="text-3xl font-bold mb-12 text-center text-gray-900 mt-24">Contact</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 bg-white p-8 rounded-lg shadow-lg">
