@@ -1,18 +1,66 @@
+'use client';
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { CldImage } from "next-cloudinary";
+
+interface ThumbnailPhoto {
+  publicId: string;
+  url: string;
+}
 
 export default function Home() {
+  const [thumbnailPhoto, setThumbnailPhoto] = useState<ThumbnailPhoto | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchThumbnail = async () => {
+      try {
+        const response = await fetch('/api/photos?folder=Thumbnail');
+        if (!response.ok) {
+          throw new Error('Failed to fetch thumbnail');
+        }
+        const data = await response.json();
+        if (data.photos && data.photos.length > 0) {
+          // Randomly select one photo from the Thumbnail folder
+          const randomIndex = Math.floor(Math.random() * data.photos.length);
+          setThumbnailPhoto(data.photos[randomIndex]);
+        }
+      } catch (error) {
+        console.error('Error fetching thumbnail:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchThumbnail();
+  }, []);
+
   return (
     <main className="fixed inset-0 w-screen h-screen">
       <div className="relative w-full h-full">
-        <Image
-          src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80"
-          alt="Main showcase"
-          fill
-          className="object-cover"
-          priority
-          sizes="100vw"
-        />
+        {loading ? (
+          <div className="w-full h-full bg-gray-100 animate-pulse" />
+        ) : thumbnailPhoto ? (
+          <CldImage
+            src={thumbnailPhoto.publicId}
+            alt="Background showcase"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+          />
+        ) : (
+          <Image
+            src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80"
+            alt="Default background"
+            fill
+            className="object-cover"
+            priority
+            sizes="100vw"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
           <h1 className="text-4xl md:text-6xl font-bold mb-4 text-gradient">

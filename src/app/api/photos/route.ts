@@ -9,27 +9,49 @@ cloudinary.config({
   api_secret: cloudinaryConfig.apiSecret,
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Get all resources from the portfolio folder
+    const { searchParams } = new URL(request.url);
+    const folder = searchParams.get('folder');
+
+    // Build the search expression based on whether a specific folder is requested
+    const expression = folder 
+      ? `folder:portfolio/${folder}/*`
+      : 'folder:portfolio/*';
+
+    // Get all resources from the specified folder
     const result = await cloudinary.search
-      .expression('folder:portfolio/*')
+      .expression(expression)
       .sort_by('created_at', 'desc')
       .max_results(100)
       .execute();
 
+    console.log('Raw Cloudinary response:', JSON.stringify(result, null, 2));
+
     // Transform the results to match our Photo interface
-    const photos = result.resources.map((resource: any) => ({
-      id: resource.public_id,
-      publicId: resource.public_id,
-      alt: resource.public_id.split('/').pop()?.replace(/-/g, ' ') || '',
-      category: resource.public_id.split('/')[1] || 'uncategorized',
-      description: resource.context?.description || '',
-      width: resource.width,
-      height: resource.height,
-      format: resource.format,
-      url: resource.secure_url,
-    }));
+    const photos = result.resources.map((resource: any) => {
+      // Get the subfolder name from the public_id
+      const pathParts = resource.public_id.split('/');
+      const folder = pathParts.length > 1 ? pathParts[1] : 'uncategorized';
+      
+      console.log('Photo details:', {
+        public_id: resource.public_id,
+        folder: folder,
+        pathParts: pathParts
+      });
+      
+      return {
+        id: resource.public_id,
+        publicId: resource.public_id,
+        alt: resource.public_id.split('/').pop()?.replace(/-/g, ' ') || '',
+        category: folder,
+        description: resource.context?.description || '',
+        width: resource.width,
+        height: resource.height,
+        format: resource.format,
+        url: resource.secure_url,
+      };
+    });
 
     return NextResponse.json({ photos });
   } catch (error) {

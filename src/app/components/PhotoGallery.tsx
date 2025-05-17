@@ -17,7 +17,6 @@ interface Photo {
 
 export default function PhotoGallery() {
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -33,31 +32,23 @@ export default function PhotoGallery() {
         setPhotos(data.photos);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load photos');
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchPhotos();
   }, []);
 
-  // Get unique categories, filtering out undefined
+  // Get unique categories, filtering out undefined and Thumbnail
   const categories = ['all', ...new Set(photos
     .map(photo => photo.category)
-    .filter((category): category is string => category !== undefined))];
+    .filter((category): category is string => 
+      category !== undefined && category.toLowerCase() !== 'thumbnail'
+    ))];
 
-  // Filter photos by category
+  // Filter photos by category and exclude Thumbnail
   const filteredPhotos = selectedCategory === 'all'
-    ? photos
+    ? photos.filter(photo => photo.category?.toLowerCase() !== 'thumbnail')
     : photos.filter(photo => photo.category === selectedCategory);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -87,47 +78,61 @@ export default function PhotoGallery() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {filteredPhotos.map((photo) => (
-          <div
-            key={photo.id}
-            className="overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105"
-            onClick={() => setSelectedPhoto(photo)}
-          >
-            <div className="relative aspect-[4/3]">
-              <CldImage
-                src={photo.publicId}
-                alt={photo.alt}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                crop="fill"
-                quality="auto"
-                format="auto"
-              />
-            </div>
-            {photo.description && (
-              <div className="p-4">
-                <p className="text-sm text-gray-600 line-clamp-2">{photo.description}</p>
+        {filteredPhotos.map((photo) => {
+          // Calculate aspect ratio
+          const aspectRatio = photo.width / photo.height;
+          const isPortrait = aspectRatio < 1;
+          
+          return (
+            <div
+              key={photo.id}
+              className={`overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 ${
+                isPortrait ? 'md:col-span-1 md:row-span-2' : ''
+              }`}
+              onClick={() => setSelectedPhoto(photo)}
+            >
+              <div 
+                className="relative w-full" 
+                style={{ 
+                  aspectRatio: isPortrait ? '2/3' : '4/3'
+                }}
+              >
+                <CldImage
+                  src={photo.publicId}
+                  alt={photo.alt}
+                  fill
+                  className={`object-cover ${isPortrait ? 'scale-[1.15]' : ''}`}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  crop="fill"
+                  quality="auto"
+                  format="auto"
+                  loading="eager"
+                />
               </div>
-            )}
-          </div>
-        ))}
+              {photo.description && (
+                <div className="p-4">
+                  <p className="text-sm text-gray-600 line-clamp-2">{photo.description}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Fullscreen Modal */}
       {selectedPhoto && (
         <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center mt-24"
+          className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex items-center justify-center"
           onClick={() => setSelectedPhoto(null)}
         >
           <div className="relative w-full h-full flex items-center justify-center p-4">
             <button
-              className="absolute top-4 right-4 text-white text-2xl hover:text-gray-300 transition-colors"
+              className="absolute top-8 right-8 text-gray-900 text-2xl hover:text-gray-600 transition-colors z-50"
               onClick={() => setSelectedPhoto(null)}
             >
               ✕
             </button>
-            <div className="relative w-full h-full max-w-7xl max-h-[calc(100vh-6rem)]">
+            <div className="relative w-full h-full max-w-7xl max-h-[calc(100vh-2rem)]">
               <CldImage
                 src={selectedPhoto.publicId}
                 alt={selectedPhoto.alt}
@@ -139,8 +144,8 @@ export default function PhotoGallery() {
                 format="auto"
               />
               {selectedPhoto.description && (
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                  <p className="text-white text-lg">{selectedPhoto.description}</p>
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white/80 to-transparent backdrop-blur-sm">
+                  <p className="text-gray-900 text-lg">{selectedPhoto.description}</p>
                 </div>
               )}
             </div>
