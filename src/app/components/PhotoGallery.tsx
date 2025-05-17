@@ -21,6 +21,8 @@ export default function PhotoGallery() {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isSpinnerVisible, setIsSpinnerVisible] = useState(false);
 
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -54,12 +56,19 @@ export default function PhotoGallery() {
   // Add this function to handle photo selection
   const handlePhotoClick = (photo: Photo) => {
     setIsLoading(true);
+    setIsSpinnerVisible(true);
+    setIsImageLoaded(false);
     setSelectedPhoto(photo);
   };
 
   // Add this function to handle image load
   const handleImageLoad = () => {
     setIsLoading(false);
+    // Add a small delay before hiding the spinner
+    setTimeout(() => {
+      setIsSpinnerVisible(false);
+      setIsImageLoaded(true);
+    }, 300);
   };
 
   if (error) {
@@ -145,16 +154,20 @@ export default function PhotoGallery() {
               ✕
             </button>
             <div className="relative w-full h-full max-w-7xl max-h-[calc(100vh-2rem)]">
-              {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10">
-                  <div className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+              {isSpinnerVisible && (
+                <div className={`absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10 transition-opacity duration-300 ${
+                  isLoading ? 'opacity-100' : 'opacity-0'
+                }`}>
+                  <div className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full animate-[spin_2s_linear_infinite]" />
                 </div>
               )}
               <CldImage
                 src={selectedPhoto.publicId}
                 alt={selectedPhoto.alt}
                 fill
-                className="object-contain"
+                className={`object-contain transition-all duration-700 ease-out ${
+                  isImageLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
                 sizes="100vw"
                 priority
                 quality="auto"
