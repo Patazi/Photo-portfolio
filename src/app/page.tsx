@@ -42,7 +42,7 @@ export default function Home() {
   };
 
   return (
-    <main className="fixed inset-0 w-screen h-screen overflow-hidden">
+    <main className="fixed inset-0 w-screen h-screen no-scroll">
       <div className="relative w-full h-full overflow-hidden">
         {loading ? (
           <div className="w-full h-full bg-gray-100 animate-pulse" />
