@@ -19,6 +19,8 @@ function ClientLayoutContent({
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const isPortfolioPage = pathname === '/portfolio';
+  const isHomePage = pathname === '/';
+  const isContactPage = pathname === '/contact';
   const [pearceWidth, setPearceWidth] = useState(0);
   const pearceRef = useRef<HTMLSpanElement>(null);
 
@@ -83,20 +85,29 @@ function ClientLayoutContent({
       <div className={`transition-opacity duration-[3000ms] ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
         <div className="min-h-screen bg-white">
           <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-            isScrolled ? 'h-10 bg-white/60 backdrop-blur-md shadow-sm' : 'h-24 bg-white/60 backdrop-blur-md'
-          } ${isPortfolioPage ? 'rounded-b-xl' : 'rounded-b-xl'}`}>
+            isPortfolioPage 
+              ? (isScrolled ? 'h-10 bg-white/60 backdrop-blur-md shadow-sm' : 'h-24 bg-white/60 backdrop-blur-md')
+              : 'h-24 bg-white/60 backdrop-blur-md'
+          } ${isPortfolioPage ? 'rounded-b-xl' : 'rounded-b-xl'} ${
+            (isHomePage || isContactPage) ? 'touch-none' : ''
+          }`}
+               onTouchMove={(e) => {
+                 if (isHomePage || isContactPage) {
+                   e.preventDefault();
+                 }
+               }}>
             <div className="max-w-7xl mx-auto px-4 h-full relative">
               <div className="h-full flex items-center justify-between">
                 <Link 
                   href="/" 
                   className={`text-2xl font-extrabold tracking-wider text-gray-900 select-none relative after:content-[''] after:block after:w-0 after:h-0.5 after:bg-gray-900 after:transition-all after:duration-300 hover:after:h-0.5 hover:after:bg-gradient-to-r hover:after:from-gray-900 hover:after:to-gray-700 after:origin-left ${
-                    isScrolled ? 'hover:after:w-[var(--pearce-width)]' : 'hover:after:w-full'
+                    isScrolled && isPortfolioPage ? 'hover:after:w-[var(--pearce-width)]' : 'hover:after:w-full'
                   }`}
                   style={{
                     '--pearce-width': `${pearceWidth}px`
                   } as React.CSSProperties}
                 >
-                  <span ref={pearceRef}>Pearce</span> <span className={`transition-opacity duration-300 ${isScrolled ? 'opacity-0' : 'opacity-100'}`}>Lee</span>
+                  <span ref={pearceRef}>Pearce</span> <span className={`transition-opacity duration-300 ${isScrolled && isPortfolioPage ? 'opacity-0' : 'opacity-100'}`}>Lee</span>
                 </Link>
                 <div className="flex items-center gap-6">
                   <Link 
@@ -127,8 +138,10 @@ function ClientLayoutContent({
             </div>
           </nav>
           <main className={`transition-all duration-300 ${
-            isScrolled ? 'pt-10' : 'pt-24'
-          } max-w-4xl mx-auto px-4`}>
+            isPortfolioPage ? (isScrolled ? 'pt-10' : 'pt-24') : 'pt-24'
+          } max-w-4xl mx-auto px-4 ${
+            isPortfolioPage ? 'scrollable' : 'no-scroll'
+          }`}>
             {children}
           </main>
         </div>
