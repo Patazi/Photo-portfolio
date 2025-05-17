@@ -11,20 +11,22 @@ const photos = [
 
 export default function Portfolio() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <h2 className="text-3xl font-bold mb-8 text-center">Portfolio</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {photos.map((src, idx) => (
-          <div key={idx} className="overflow-hidden rounded-lg shadow-lg">
-            <Image
-              src={src}
-              alt={`Portfolio photo ${idx + 1}`}
-              width={600}
-              height={400}
-              className="object-cover w-full h-64"
-            />
-          </div>
-        ))}
+    <div className="fixed inset-0 bg-[#fafafa]">
+      <div className="max-w-6xl mx-auto px-4 py-12 mt-24">
+        <h2 className="text-3xl font-bold mb-12 text-center text-gray-900">Portfolio</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {photos.map((src, idx) => (
+            <div key={idx} className="overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-shadow duration-300">
+              <Image
+                src={src}
+                alt={`Portfolio photo ${idx + 1}`}
+                width={600}
+                height={400}
+                className="object-cover w-full h-64 hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
