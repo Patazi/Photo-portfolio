@@ -48,21 +48,13 @@ export default function Home() {
             <br />
             <span className="text-white drop-shadow-lg">Photography</span>
           </h1>
-          <div className="mb-8">
+          <div className="mb-4">
             <p className="text-2xl md:text-3xl mb-2 font-['Playfair_Display'] italic tracking-wide text-white drop-shadow-lg">
               Fiat lux, et per lentem lucem persequor.
             </p>
             <p className="text-lg md:text-xl text-gray-200">
               &ldquo;Let there be light, and through the lens I pursue it.&rdquo;
             </p>
-          </div>
-          <div className="flex gap-4">
-            <Link href="/portfolio" className="btn bg-sky-500/20 backdrop-blur-sm text-white hover:bg-sky-500/30">
-              View Portfolio
-            </Link>
-            <Link href="/contact" className="btn bg-white/20 backdrop-blur-sm text-white hover:bg-white/30">
-              Contact Me
-            </Link>
           </div>
         </div>
       </div>
