@@ -6,11 +6,6 @@ import { useEffect, useState } from "react";
 import { CldImage } from "next-cloudinary";
 import { useThumbnail } from "./context/ThumbnailContext";
 
-interface ThumbnailPhoto {
-  publicId: string;
-  url: string;
-}
-
 export default function Home() {
   const { thumbnailPhoto } = useThumbnail();
   const [loading, setLoading] = useState(true);

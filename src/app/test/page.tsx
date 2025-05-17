@@ -2,16 +2,22 @@
 
 import { useState, useEffect } from 'react';
 
+interface TestDetails {
+  status: string;
+  message: string;
+  [key: string]: unknown;
+}
+
 export default function TestPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState<string>('');
-  const [details, setDetails] = useState<any>(null);
+  const [details, setDetails] = useState<TestDetails | null>(null);
 
   useEffect(() => {
     const checkEnv = async () => {
       try {
         const response = await fetch('/api/test-env');
-        const data = await response.json();
+        const data = await response.json() as TestDetails;
         
         setStatus(data.status === 'success' ? 'success' : 'error');
         setMessage(data.message);
@@ -19,7 +25,7 @@ export default function TestPage() {
       } catch (error) {
         setStatus('error');
         setMessage('Failed to check environment variables');
-        setDetails(error);
+        setDetails(error as TestDetails);
       }
     };
 

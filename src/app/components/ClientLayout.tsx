@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FaInstagram } from 'react-icons/fa';
-import Image from 'next/image';
 import { ThumbnailProvider } from '../context/ThumbnailContext';
 import { PortfolioProvider } from '../context/PortfolioContext';
 import { useThumbnail } from '../context/ThumbnailContext';

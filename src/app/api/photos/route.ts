@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 import { cloudinaryConfig } from '@/app/config/cloudinary';
 
+interface CloudinaryResource {
+  public_id: string;
+  width: number;
+  height: number;
+  format: string;
+  secure_url: string;
+  context?: {
+    description?: string;
+  };
+}
+
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: cloudinaryConfig.cloudName,
@@ -29,7 +40,7 @@ export async function GET(request: Request) {
     console.log('Raw Cloudinary response:', JSON.stringify(result, null, 2));
 
     // Transform the results to match our Photo interface
-    const photos = result.resources.map((resource: any) => {
+    const photos = result.resources.map((resource: CloudinaryResource) => {
       // Get the subfolder name from the public_id
       const pathParts = resource.public_id.split('/');
       const folder = pathParts.length > 1 ? pathParts[1] : 'uncategorized';
