@@ -67,7 +67,16 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ photos });
+    return new NextResponse(
+      JSON.stringify({ photos }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=600', // 快取 10 分鐘
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching photos:', error);
     return NextResponse.json(
