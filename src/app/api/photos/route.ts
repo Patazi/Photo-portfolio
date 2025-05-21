@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '12');
+    const limit = parseInt(searchParams.get('limit') || '20');
     const category = searchParams.get('category') || 'all';
     
     console.log('Fetching photos with params:', {
@@ -121,9 +121,8 @@ export async function GET(request: Request) {
       categories: allCategories
     }, {
       headers: {
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
-        'ETag': `"${Buffer.from(JSON.stringify(paginatedPhotos)).toString('base64').slice(0, 32)}"`,
-        'Vary': 'Accept-Encoding, Accept-Language'
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache'
       }
     });
   } catch (error) {

@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   images: {
     domains: ['images.unsplash.com', 'res.cloudinary.com'],
   },
+  optimizeFonts: true,
+  experimental: {
+    optimizeCss: true,
+    optimizePackageImports: ['@next/font'],
+  },
   async headers() {
     const isDevelopment = process.env.NODE_ENV === 'development';
     

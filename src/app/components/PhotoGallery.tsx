@@ -39,7 +39,8 @@ export default function PhotoGallery() {
   const [availableCategories, setAvailableCategories] = useState<string[]>(['all']);
   const hasLoadedPhotos = useRef(false);
   const observerTarget = useRef<HTMLDivElement>(null);
-  const ITEMS_PER_PAGE = 20;
+  const INITIAL_LOAD = 20;  // 初始加載更多照片
+  const LOAD_MORE = 20;     // 後續加載保持較小數量
 
   // 禁用右鍵選單和拖拽
   useEffect(() => {
@@ -74,8 +75,11 @@ export default function PhotoGallery() {
     setIsLoadingMore(true);
     try {
       const nextPage = page + 1;
-      console.log('Loading more photos, page:', nextPage);
-      const response = await fetch(`/api/photos?page=${nextPage}&limit=${ITEMS_PER_PAGE}&category=${selectedCategory}`);
+      const isInitialLoad = page === 1;
+      const limit = isInitialLoad ? INITIAL_LOAD : LOAD_MORE;
+      
+      console.log('Loading more photos, page:', nextPage, 'limit:', limit, 'category:', selectedCategory);
+      const response = await fetch(`/api/photos?page=${nextPage}&limit=${limit}&category=${selectedCategory}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch more photos: ${response.status}`);
@@ -84,7 +88,10 @@ export default function PhotoGallery() {
       const data = await response.json();
       console.log('Successfully loaded more photos:', {
         count: data.photos.length,
-        hasMore: data.hasMore
+        hasMore: data.hasMore,
+        isInitialLoad,
+        currentPage: page,
+        nextPage
       });
 
       // 確保新加載的照片不會與現有照片重複
@@ -92,7 +99,7 @@ export default function PhotoGallery() {
         (newPhoto: Photo) => !photos.some(existingPhoto => existingPhoto.id === newPhoto.id)
       );
 
-      setPhotos([...photos, ...newPhotos]);
+      setPhotos((prevPhotos: Photo[]) => [...prevPhotos, ...newPhotos]);
       setHasMore(data.hasMore);
       setPage(nextPage);
     } catch (err) {
@@ -100,46 +107,23 @@ export default function PhotoGallery() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, page, selectedCategory, photos, setPhotos]);
-
-  // 設置 Intersection Observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          loadMorePhotos();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [hasMore, isLoadingMore, selectedCategory, loadMorePhotos]);
+  }, [isLoadingMore, page, selectedCategory, photos]);
 
   // 當類別改變時重置分頁
   useEffect(() => {
     const loadCategoryPhotos = async () => {
-      // 先清空現有照片和狀態
-      setPhotos([]);
+      // 重置所有相關狀態
       setPage(1);
       setHasMore(true);
-      hasLoadedPhotos.current = false;
       setIsLoadingMore(true);
       setLoadedThumbnails(new Set());
       setFailedThumbnails(new Set());
+      setPhotos([]); // 清空現有照片
+      setIsInitialLoad(true); // 重置初始加載狀態
 
       try {
         console.log('Loading photos for category:', selectedCategory);
-        const response = await fetch(`/api/photos?page=1&limit=${ITEMS_PER_PAGE}&category=${selectedCategory}`);
+        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}&category=${selectedCategory}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch photos: ${response.status}`);
@@ -149,10 +133,10 @@ export default function PhotoGallery() {
         console.log('Successfully loaded category photos:', {
           category: selectedCategory,
           count: data.photos.length,
-          hasMore: data.hasMore
+          hasMore: data.hasMore,
+          page: 1
         });
 
-        // 確保照片數組不為空
         if (data.photos && data.photos.length > 0) {
           setPhotos(data.photos);
           setHasMore(data.hasMore);
@@ -172,6 +156,38 @@ export default function PhotoGallery() {
     loadCategoryPhotos();
   }, [selectedCategory, setPhotos]);
 
+  // 設置 Intersection Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          console.log('Intersection observer triggered:', {
+            hasMore,
+            isLoadingMore,
+            currentPage: page,
+            category: selectedCategory
+          });
+          loadMorePhotos();
+        }
+      },
+      { 
+        threshold: 0.1,
+        rootMargin: '100px'  // 提前 100px 觸發加載
+      }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, isLoadingMore, selectedCategory, loadMorePhotos, page]);
+
   // 初始加載照片
   useEffect(() => {
     const fetchPhotos = async () => {
@@ -181,7 +197,7 @@ export default function PhotoGallery() {
 
       try {
         console.log('Fetching initial photos...');
-        const response = await fetch('/api/photos?page=1&limit=' + ITEMS_PER_PAGE);
+        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}`);
         if (!response.ok) {
           const errorData = await response.json().catch(() => null);
           console.error('Failed to fetch photos:', {
@@ -231,7 +247,11 @@ export default function PhotoGallery() {
   };
 
   const handleThumbnailLoad = (photoId: string) => {
-    setLoadedThumbnails(prev => new Set([...prev, photoId]));
+    setLoadedThumbnails(prev => {
+      const newSet = new Set(prev);
+      newSet.add(photoId);
+      return newSet;
+    });
   };
 
   // Filter photos based on selected category
@@ -372,7 +392,10 @@ export default function PhotoGallery() {
                         quality="auto"
                         format="auto"
                         loading={isPriority ? "eager" : "lazy"}
-                        onLoad={() => handleThumbnailLoad(photo.id)}
+                        onLoad={() => {
+                          handleThumbnailLoad(photo.id);
+                          console.log('Thumbnail loaded:', photo.id);
+                        }}
                         onError={(error) => {
                           console.error('Error loading thumbnail:', {
                             photoId: photo.id,
