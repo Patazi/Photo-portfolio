@@ -129,6 +129,45 @@ export default function PhotoGallery() {
     photo.category?.toLowerCase() !== 'thumbnail'
   );
 
+  // 添加重試機制
+  const handleRetry = (photoId: string) => {
+    setFailedThumbnails(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(photoId);
+      return newSet;
+    });
+    setRetryCount(prev => ({
+      ...prev,
+      [photoId]: (prev[photoId] || 0) + 1
+    }));
+  };
+
+  // 渲染錯誤狀態的縮略圖
+  const renderErrorThumbnail = (photo: Photo) => {
+    const retries = retryCount[photo.id] || 0;
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4 text-center">
+        <div className="text-gray-400 mb-2">
+          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <p className="text-sm text-gray-500 mb-2">圖片加載失敗</p>
+        {retries < 3 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRetry(photo.id);
+            }}
+            className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-full transition-colors"
+          >
+            重試
+          </button>
+        )}
+      </div>
+    );
+  };
+
   if (error) {
     return (
       <div className="text-center text-red-500 p-4">
@@ -164,8 +203,8 @@ export default function PhotoGallery() {
           const aspectRatio = photo.width / photo.height;
           const isPortrait = aspectRatio < 1;
           const isThumbnailLoaded = loadedThumbnails.has(photo.id);
+          const hasFailed = failedThumbnails.has(photo.id);
           const animationDelay = isInitialLoad ? `${index * 0.1}s` : '0s';
-          // 為前 6 張圖片添加 priority 屬性
           const isPriority = index < 6;
           
           return (
@@ -192,44 +231,49 @@ export default function PhotoGallery() {
                 <div className={`absolute inset-0 bg-gray-100 transition-opacity duration-500 ${
                   isThumbnailLoaded ? 'opacity-0' : 'opacity-100'
                 }`} />
-                <CldImage
-                  src={photo.publicId}
-                  alt={photo.alt}
-                  fill
-                  priority={isPriority}
-                  className={`object-cover transition-all duration-500 ${
-                    isPortrait ? 'scale-[1.15]' : ''
-                  } ${
-                    isThumbnailLoaded ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  crop="fill"
-                  quality="auto"
-                  format="auto"
-                  loading={isPriority ? "eager" : "lazy"}
-                  onLoad={() => handleThumbnailLoad(photo.id)}
-                  onError={(error) => {
-                    console.error('Error loading thumbnail:', {
-                      photoId: photo.id,
-                      publicId: photo.publicId,
-                      error: error,
-                      timestamp: new Date().toISOString(),
-                      isPriority
-                    });
-                  }}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                  }}
-                  onDragStart={(e) => {
-                    e.preventDefault();
-                  }}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                  }}
-                />
+                {hasFailed ? (
+                  renderErrorThumbnail(photo)
+                ) : (
+                  <CldImage
+                    src={photo.publicId}
+                    alt={photo.alt}
+                    fill
+                    priority={isPriority}
+                    className={`object-cover transition-all duration-500 ${
+                      isPortrait ? 'scale-[1.15]' : ''
+                    } ${
+                      isThumbnailLoaded ? 'opacity-100' : 'opacity-0'
+                    }`}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    crop="fill"
+                    quality="auto"
+                    format="auto"
+                    loading={isPriority ? "eager" : "lazy"}
+                    onLoad={() => handleThumbnailLoad(photo.id)}
+                    onError={(error) => {
+                      console.error('Error loading thumbnail:', {
+                        photoId: photo.id,
+                        publicId: photo.publicId,
+                        error: error,
+                        timestamp: new Date().toISOString(),
+                        isPriority
+                      });
+                      setFailedThumbnails(prev => new Set([...prev, photo.id]));
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                    }}
+                    onDragStart={(e) => {
+                      e.preventDefault();
+                    }}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                    }}
+                  />
+                )}
               </div>
               {photo.description && (
                 <div className="p-4">
@@ -262,53 +306,70 @@ export default function PhotoGallery() {
                   <div className="w-16 h-16 border-4 border-gray-200 border-t-gray-900 rounded-full animate-[spin_2s_linear_infinite]" />
                 </div>
               )}
-              <CldImage
-                src={selectedPhoto.publicId}
-                alt={selectedPhoto.alt}
-                fill
-                className={`object-contain transition-all ${
-                  shouldAnimate ? 'duration-1000 ease-out' : 'duration-0'
-                } ${
-                  isImageLoaded ? 'opacity-100' : 'opacity-0'
-                }`}
-                sizes="100vw"
-                priority
-                quality="auto"
-                format="auto"
-                onLoad={handleImageLoad}
-                onError={(error) => {
-                  console.error('Error loading full-size image:', {
-                    photoId: selectedPhoto.id,
-                    publicId: selectedPhoto.publicId,
-                    error: error,
-                    timestamp: new Date().toISOString()
-                  });
-                  setIsLoading(false);
-                  setIsSpinnerVisible(false);
-                }}
-                onTouchStart={(e) => {
-                  // 防止長按下載
-                  e.preventDefault();
-                }}
-                onContextMenu={(e) => {
-                  // 防止右鍵選單
-                  e.preventDefault();
-                }}
-                onDragStart={(e) => {
-                  // 防止拖拽
-                  e.preventDefault();
-                }}
-                onSelect={(e) => {
-                  // 防止選擇
-                  e.preventDefault();
-                }}
-                style={{
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none',
-                  WebkitTouchCallout: 'none'
-                }}
-              />
-              {selectedPhoto.description && (
+              {failedThumbnails.has(selectedPhoto.id) ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-8 text-center">
+                  <div className="text-gray-400 mb-4">
+                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-lg text-gray-600 mb-4">無法載入圖片</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRetry(selectedPhoto.id);
+                    }}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-full transition-colors"
+                  >
+                    重試
+                  </button>
+                </div>
+              ) : (
+                <CldImage
+                  src={selectedPhoto.publicId}
+                  alt={selectedPhoto.alt}
+                  fill
+                  className={`object-contain transition-all ${
+                    shouldAnimate ? 'duration-1000 ease-out' : 'duration-0'
+                  } ${
+                    isImageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  sizes="100vw"
+                  priority
+                  quality="auto"
+                  format="auto"
+                  onLoad={handleImageLoad}
+                  onError={(error) => {
+                    console.error('Error loading full-size image:', {
+                      photoId: selectedPhoto.id,
+                      publicId: selectedPhoto.publicId,
+                      error: error,
+                      timestamp: new Date().toISOString()
+                    });
+                    setIsLoading(false);
+                    setIsSpinnerVisible(false);
+                    setFailedThumbnails(prev => new Set([...prev, selectedPhoto.id]));
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                  }}
+                  onDragStart={(e) => {
+                    e.preventDefault();
+                  }}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                  }}
+                  style={{
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    WebkitTouchCallout: 'none'
+                  }}
+                />
+              )}
+              {selectedPhoto.description && !failedThumbnails.has(selectedPhoto.id) && (
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white/80 to-transparent backdrop-blur-sm">
                   <p className="text-gray-900 text-lg">{selectedPhoto.description}</p>
                 </div>
