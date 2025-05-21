@@ -3,7 +3,6 @@ const nextConfig = {
   images: {
     domains: ['images.unsplash.com', 'res.cloudinary.com'],
   },
-  optimizeFonts: true,
   experimental: {
     optimizeCss: true,
     optimizePackageImports: ['@next/font'],
