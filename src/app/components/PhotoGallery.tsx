@@ -30,6 +30,8 @@ export default function PhotoGallery() {
   const [isSpinnerVisible, setIsSpinnerVisible] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(true);
   const [loadedThumbnails, setLoadedThumbnails] = useState<Set<string>>(new Set());
+  const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
+  const [retryCount, setRetryCount] = useState<Record<string, number>>({});
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const hasLoadedPhotos = useRef(false);
 
@@ -59,14 +61,34 @@ export default function PhotoGallery() {
       }
 
       try {
+        console.log('Fetching photos from API...');
         const response = await fetch('/api/photos');
         if (!response.ok) {
-          throw new Error('Failed to fetch photos');
+          const errorData = await response.json().catch(() => null);
+          console.error('Failed to fetch photos:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData
+          });
+          throw new Error(`Failed to fetch photos: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
+        console.log('Successfully fetched photos:', {
+          count: data.photos.length,
+          firstPhoto: data.photos[0] ? {
+            id: data.photos[0].id,
+            publicId: data.photos[0].publicId,
+            url: data.photos[0].url
+          } : null
+        });
         setPhotos(data.photos);
         hasLoadedPhotos.current = true;
       } catch (err) {
+        console.error('Error in fetchPhotos:', {
+          error: err,
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined
+        });
         setError(err instanceof Error ? err.message : 'Failed to load photos');
       }
     };
@@ -143,6 +165,8 @@ export default function PhotoGallery() {
           const isPortrait = aspectRatio < 1;
           const isThumbnailLoaded = loadedThumbnails.has(photo.id);
           const animationDelay = isInitialLoad ? `${index * 0.1}s` : '0s';
+          // 為前 6 張圖片添加 priority 屬性
+          const isPriority = index < 6;
           
           return (
             <div
@@ -172,6 +196,7 @@ export default function PhotoGallery() {
                   src={photo.publicId}
                   alt={photo.alt}
                   fill
+                  priority={isPriority}
                   className={`object-cover transition-all duration-500 ${
                     isPortrait ? 'scale-[1.15]' : ''
                   } ${
@@ -181,22 +206,27 @@ export default function PhotoGallery() {
                   crop="fill"
                   quality="auto"
                   format="auto"
-                  loading="eager"
+                  loading={isPriority ? "eager" : "lazy"}
                   onLoad={() => handleThumbnailLoad(photo.id)}
+                  onError={(error) => {
+                    console.error('Error loading thumbnail:', {
+                      photoId: photo.id,
+                      publicId: photo.publicId,
+                      error: error,
+                      timestamp: new Date().toISOString(),
+                      isPriority
+                    });
+                  }}
                   onTouchStart={(e) => {
-                    // 防止長按下載
                     e.preventDefault();
                   }}
                   onContextMenu={(e) => {
-                    // 防止右鍵選單
                     e.preventDefault();
                   }}
                   onDragStart={(e) => {
-                    // 防止拖拽
                     e.preventDefault();
                   }}
                   onSelect={(e) => {
-                    // 防止選擇
                     e.preventDefault();
                   }}
                 />
@@ -246,6 +276,16 @@ export default function PhotoGallery() {
                 quality="auto"
                 format="auto"
                 onLoad={handleImageLoad}
+                onError={(error) => {
+                  console.error('Error loading full-size image:', {
+                    photoId: selectedPhoto.id,
+                    publicId: selectedPhoto.publicId,
+                    error: error,
+                    timestamp: new Date().toISOString()
+                  });
+                  setIsLoading(false);
+                  setIsSpinnerVisible(false);
+                }}
                 onTouchStart={(e) => {
                   // 防止長按下載
                   e.preventDefault();
