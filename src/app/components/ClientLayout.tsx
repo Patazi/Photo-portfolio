@@ -22,12 +22,16 @@ function ClientLayoutContent({
   const isHomePage = pathname === '/';
   const isContactPage = pathname === '/contact';
   const [pearceWidth, setPearceWidth] = useState(0);
+  const [fullWidth, setFullWidth] = useState(0);
   const pearceRef = useRef<HTMLSpanElement>(null);
+  const fullRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (pearceRef.current) {
-      const width = pearceRef.current.offsetWidth;
-      setPearceWidth(width);
+    if (pearceRef.current && fullRef.current) {
+      const pearceWidth = pearceRef.current.offsetWidth;
+      const fullWidth = fullRef.current.offsetWidth;
+      setPearceWidth(pearceWidth);
+      setFullWidth(fullWidth);
     }
   }, [isScrolled]);
 
@@ -100,11 +104,14 @@ function ClientLayoutContent({
               <div className="h-full flex items-center justify-between">
                 <Link 
                   href="/" 
-                  className={`text-2xl font-extrabold tracking-wider text-gray-900 select-none relative after:content-[''] after:block after:h-[3px] after:bg-gradient-to-r after:from-gray-900 after:to-gray-700 after:transition-all after:duration-300 after:w-0 hover:after:w-full`}
+                  className={`text-2xl font-extrabold tracking-wider text-gray-900 select-none relative after:content-[''] after:block after:h-[3px] after:bg-gradient-to-r after:from-gray-900 after:to-gray-700 after:transition-all after:duration-300 after:w-0 hover:after:w-[var(--underline-width)]`}
                   style={{
-                    '--pearce-width': `${pearceWidth}px`
+                    '--underline-width': `${isScrolled && isPortfolioPage ? pearceWidth : fullWidth}px`
                   } as React.CSSProperties}
                 >
+                  <div ref={fullRef} className="absolute opacity-0 pointer-events-none">
+                    <span>Pearce</span> <span>Lee</span>
+                  </div>
                   <span ref={pearceRef}>Pearce</span> <span className={`transition-opacity duration-300 ${isScrolled && isPortfolioPage ? 'opacity-0' : 'opacity-100'}`}>Lee</span>
                 </Link>
                 <div className="flex items-center gap-6">
