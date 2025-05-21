@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { CldImage } from 'next-cloudinary';
 import { usePortfolio } from '../context/PortfolioContext';
 
@@ -67,6 +67,41 @@ export default function PhotoGallery() {
     };
   }, []);
 
+  // 加載更多照片
+  const loadMorePhotos = useCallback(async () => {
+    if (isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      console.log('Loading more photos, page:', nextPage);
+      const response = await fetch(`/api/photos?page=${nextPage}&limit=${ITEMS_PER_PAGE}&category=${selectedCategory}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch more photos: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Successfully loaded more photos:', {
+        count: data.photos.length,
+        hasMore: data.hasMore
+      });
+
+      // 確保新加載的照片不會與現有照片重複
+      const newPhotos = data.photos.filter(
+        (newPhoto: Photo) => !photos.some(existingPhoto => existingPhoto.id === newPhoto.id)
+      );
+
+      setPhotos([...photos, ...newPhotos]);
+      setHasMore(data.hasMore);
+      setPage(nextPage);
+    } catch (err) {
+      console.error('Error loading more photos:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, page, selectedCategory, photos, setPhotos]);
+
   // 設置 Intersection Observer
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -75,23 +110,20 @@ export default function PhotoGallery() {
           loadMorePhotos();
         }
       },
-      {
-        root: null,
-        rootMargin: '100px',
-        threshold: 0.1,
-      }
+      { threshold: 0.1 }
     );
 
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
     }
 
     return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current);
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
       }
     };
-  }, [hasMore, isLoadingMore, selectedCategory]);
+  }, [hasMore, isLoadingMore, selectedCategory, loadMorePhotos]);
 
   // 當類別改變時重置分頁
   useEffect(() => {
@@ -139,41 +171,6 @@ export default function PhotoGallery() {
 
     loadCategoryPhotos();
   }, [selectedCategory, setPhotos]);
-
-  // 加載更多照片
-  const loadMorePhotos = async () => {
-    if (isLoadingMore) return;
-
-    setIsLoadingMore(true);
-    try {
-      const nextPage = page + 1;
-      console.log('Loading more photos, page:', nextPage);
-      const response = await fetch(`/api/photos?page=${nextPage}&limit=${ITEMS_PER_PAGE}&category=${selectedCategory}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch more photos: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Successfully loaded more photos:', {
-        count: data.photos.length,
-        hasMore: data.hasMore
-      });
-
-      // 確保新加載的照片不會與現有照片重複
-      const newPhotos = data.photos.filter(
-        (newPhoto: Photo) => !photos.some(existingPhoto => existingPhoto.id === newPhoto.id)
-      );
-
-      setPhotos((prev: Photo[]) => [...prev, ...newPhotos]);
-      setHasMore(data.hasMore);
-      setPage(nextPage);
-    } catch (err) {
-      console.error('Error loading more photos:', err);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
 
   // 初始加載照片
   useEffect(() => {
@@ -267,7 +264,7 @@ export default function PhotoGallery() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
-        <p className="text-sm text-gray-500 mb-2">圖片加載失敗</p>
+        <p className="text-sm text-gray-500 mb-2">圖片加載失數</p>
         {retries < 3 && (
           <button
             onClick={(e) => {

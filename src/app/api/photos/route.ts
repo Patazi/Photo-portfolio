@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 import { Photo } from '@/app/types/photo';
 
+interface CloudinaryResource {
+  public_id: string;
+  secure_url: string;
+  width: number;
+  height: number;
+  context?: {
+    custom?: {
+      description?: string;
+      category?: string;
+    };
+  };
+}
+
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -42,7 +55,7 @@ export async function GET(request: Request) {
     }
 
     // Transform Cloudinary resources to Photo objects
-    const allPhotos: Photo[] = result.resources.map((resource: any) => {
+    const allPhotos: Photo[] = result.resources.map((resource: CloudinaryResource) => {
       // 從 public_id 生成有意義的 alt 文本
       const altText = resource.context?.custom?.description || 
         resource.public_id.split('/').pop()?.replace(/-/g, ' ') || 
