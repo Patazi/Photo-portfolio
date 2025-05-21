@@ -458,7 +458,7 @@ export default function PhotoGallery() {
                       userSelect: 'none',
                       WebkitUserSelect: 'none',
                       WebkitTouchCallout: 'none',
-                      touchAction: 'none' // 防止觸摸拖拽
+                      touchAction: 'pan-y' // 允許垂直滾動，但防止水平拖拽
                     }}
                   >
                     <div className={`absolute inset-0 bg-gray-100 transition-opacity duration-500 ${
