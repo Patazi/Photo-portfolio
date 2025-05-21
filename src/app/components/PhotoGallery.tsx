@@ -148,7 +148,7 @@ export default function PhotoGallery() {
             <div
               key={photo.id}
               className={`overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 ${
-                isPortrait ? 'md:col-span-1 md:row-span-2' : ''
+                isPortrait ? 'sm:col-span-1 sm:row-span-2' : ''
               }`}
               style={{
                 opacity: 0,
