@@ -1,112 +1,133 @@
 import { NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
-import { cloudinaryConfig } from '@/app/config/cloudinary';
-
-interface CloudinaryResource {
-  public_id: string;
-  width: number;
-  height: number;
-  format: string;
-  secure_url: string;
-  context?: {
-    description?: string;
-  };
-}
+import { Photo } from '@/app/types/photo';
 
 // Configure Cloudinary
 cloudinary.config({
-  cloud_name: cloudinaryConfig.cloudName,
-  api_key: cloudinaryConfig.apiKey,
-  api_secret: cloudinaryConfig.apiSecret,
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true
 });
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const folder = searchParams.get('folder');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '12');
+    const category = searchParams.get('category') || 'all';
     
-    console.log('Processing photo request:', {
-      folder,
-      timestamp: new Date().toISOString(),
-      cloudName: cloudinaryConfig.cloudName
+    console.log('Fetching photos with params:', {
+      page,
+      limit,
+      category,
+      cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
     });
 
-    // Build the search expression based on whether a specific folder is requested
-    const expression = folder 
-      ? `folder:portfolio/${folder}/*`
-      : 'folder:portfolio/*';
-
-    console.log('Cloudinary search expression:', expression);
-
-    // Get all resources from the specified folder
+    // Get all resources from Cloudinary
     const result = await cloudinary.search
-      .expression(expression)
+      .expression('folder:portfolio/*')
       .sort_by('created_at', 'desc')
-      .max_results(100)
+      .max_results(500)
       .execute();
 
-    console.log('Cloudinary API response:', {
-      resourceCount: result.resources.length,
-      firstResource: result.resources[0] ? {
-        public_id: result.resources[0].public_id,
-        secure_url: result.resources[0].secure_url
-      } : null,
-      timestamp: new Date().toISOString()
+    console.log('Cloudinary search result:', {
+      totalCount: result.total_count,
+      resources: result.resources?.length || 0
     });
 
-    // Transform the results to match our Photo interface
-    const photos = result.resources.map((resource: CloudinaryResource) => {
-      // Get the subfolder name from the public_id
+    if (!result.resources) {
+      console.error('No resources found in Cloudinary response');
+      return NextResponse.json({ error: 'No photos found' }, { status: 404 });
+    }
+
+    // Transform Cloudinary resources to Photo objects
+    const allPhotos: Photo[] = result.resources.map((resource: any) => {
+      // 從 public_id 生成有意義的 alt 文本
+      const altText = resource.context?.custom?.description || 
+        resource.public_id.split('/').pop()?.replace(/-/g, ' ') || 
+        'Photography portfolio image';
+
+      // 從 public_id 獲取類別
       const pathParts = resource.public_id.split('/');
-      const folder = pathParts.length > 1 ? pathParts[1] : 'uncategorized';
+      const folderCategory = pathParts.length > 1 ? pathParts[1] : 'uncategorized';
       
-      // 保持原始 public_id 不變，因為這是 Cloudinary 的實際路徑
-      const publicId = resource.public_id;
-      
-      console.log('Processing photo:', {
-        public_id: resource.public_id,
-        folder: folder,
-        pathParts: pathParts,
-        secure_url: resource.secure_url
-      });
-      
+      // 優先使用自定義類別，如果沒有則使用文件夾名稱
+      const category = resource.context?.custom?.category || folderCategory;
+
       return {
-        id: publicId,
-        publicId: publicId,
-        alt: resource.public_id.split('/').pop()?.replace(/-/g, ' ') || '',
-        category: folder,
-        description: resource.context?.description || '',
+        id: resource.public_id,
+        publicId: resource.public_id,
+        url: resource.secure_url,
         width: resource.width,
         height: resource.height,
-        format: resource.format,
-        url: resource.secure_url,
+        description: resource.context?.custom?.description || '',
+        category: category.toLowerCase(),
+        alt: altText
       };
     });
 
-    return new NextResponse(
-      JSON.stringify({ photos }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=300, stale-while-revalidate=60', // 減少快取時間並添加 stale-while-revalidate
-        },
-      }
+    // 移除重複的照片（基於 publicId）
+    const uniquePhotos = Array.from(
+      new Map(allPhotos.map(photo => [photo.publicId, photo])).values()
     );
-  } catch (error) {
-    console.error('Error in photos API:', {
-      error: error,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
+
+    // 獲取所有可用的類別
+    const allCategories = [...new Set(uniquePhotos
+      .map(photo => photo.category)
+      .filter(category => 
+        category !== undefined && 
+        category.toLowerCase() !== 'thumbnail' &&
+        category.toLowerCase() !== 'uncategorized'
+      ))];
+
+    // Filter by category if not 'all'
+    const filteredPhotos = category === 'all' 
+      ? uniquePhotos 
+      : uniquePhotos.filter(photo => photo.category === category.toLowerCase());
+
+    // Calculate pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedPhotos = filteredPhotos.slice(startIndex, endIndex);
+    const hasMore = endIndex < filteredPhotos.length;
+
+    console.log('Returning paginated photos:', {
+      total: filteredPhotos.length,
+      page,
+      limit,
+      returned: paginatedPhotos.length,
+      hasMore,
+      categories: allCategories
     });
-    
+
+    return NextResponse.json({
+      photos: paginatedPhotos,
+      hasMore,
+      total: filteredPhotos.length,
+      categories: allCategories
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'ETag': `"${Buffer.from(JSON.stringify(paginatedPhotos)).toString('base64').slice(0, 32)}"`,
+        'Vary': 'Accept-Encoding, Accept-Language'
+      }
+    });
+  } catch (error) {
+    console.error('Error in photos API route:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return NextResponse.json(
+      { error: 'Failed to fetch photos' },
       { 
-        error: 'Failed to fetch photos',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      }
     );
   }
 } 

@@ -33,7 +33,13 @@ export default function PhotoGallery() {
   const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<string[]>(['all']);
   const hasLoadedPhotos = useRef(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const ITEMS_PER_PAGE = 20;
 
   // 禁用右鍵選單和拖拽
   useEffect(() => {
@@ -45,15 +51,131 @@ export default function PhotoGallery() {
       e.preventDefault();
     };
 
+    const handleTouchStart = (e: TouchEvent) => {
+      // 不阻止默認行為，而是使用 CSS 來防止拖拽
+      e.stopPropagation();
+    };
+
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
 
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('touchstart', handleTouchStart);
     };
   }, []);
 
+  // 設置 Intersection Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMorePhotos();
+        }
+      },
+      {
+        root: null,
+        rootMargin: '100px',
+        threshold: 0.1,
+      }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [hasMore, isLoadingMore, selectedCategory]);
+
+  // 當類別改變時重置分頁
+  useEffect(() => {
+    const loadCategoryPhotos = async () => {
+      // 先清空現有照片和狀態
+      setPhotos([]);
+      setPage(1);
+      setHasMore(true);
+      hasLoadedPhotos.current = false;
+      setIsLoadingMore(true);
+      setLoadedThumbnails(new Set());
+      setFailedThumbnails(new Set());
+
+      try {
+        console.log('Loading photos for category:', selectedCategory);
+        const response = await fetch(`/api/photos?page=1&limit=${ITEMS_PER_PAGE}&category=${selectedCategory}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch photos: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Successfully loaded category photos:', {
+          category: selectedCategory,
+          count: data.photos.length,
+          hasMore: data.hasMore
+        });
+
+        // 確保照片數組不為空
+        if (data.photos && data.photos.length > 0) {
+          setPhotos(data.photos);
+          setHasMore(data.hasMore);
+          hasLoadedPhotos.current = true;
+        } else {
+          console.log('No photos found for category:', selectedCategory);
+          setHasMore(false);
+        }
+      } catch (err) {
+        console.error('Error loading category photos:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load photos');
+      } finally {
+        setIsLoadingMore(false);
+      }
+    };
+
+    loadCategoryPhotos();
+  }, [selectedCategory, setPhotos]);
+
+  // 加載更多照片
+  const loadMorePhotos = async () => {
+    if (isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      console.log('Loading more photos, page:', nextPage);
+      const response = await fetch(`/api/photos?page=${nextPage}&limit=${ITEMS_PER_PAGE}&category=${selectedCategory}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch more photos: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Successfully loaded more photos:', {
+        count: data.photos.length,
+        hasMore: data.hasMore
+      });
+
+      // 確保新加載的照片不會與現有照片重複
+      const newPhotos = data.photos.filter(
+        (newPhoto: Photo) => !photos.some(existingPhoto => existingPhoto.id === newPhoto.id)
+      );
+
+      setPhotos((prev: Photo[]) => [...prev, ...newPhotos]);
+      setHasMore(data.hasMore);
+      setPage(nextPage);
+    } catch (err) {
+      console.error('Error loading more photos:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // 初始加載照片
   useEffect(() => {
     const fetchPhotos = async () => {
       if (photos.length > 0 || hasLoadedPhotos.current) {
@@ -61,8 +183,8 @@ export default function PhotoGallery() {
       }
 
       try {
-        console.log('Fetching photos from API...');
-        const response = await fetch('/api/photos');
+        console.log('Fetching initial photos...');
+        const response = await fetch('/api/photos?page=1&limit=' + ITEMS_PER_PAGE);
         if (!response.ok) {
           const errorData = await response.json().catch(() => null);
           console.error('Failed to fetch photos:', {
@@ -73,15 +195,14 @@ export default function PhotoGallery() {
           throw new Error(`Failed to fetch photos: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
-        console.log('Successfully fetched photos:', {
+        console.log('Successfully fetched initial photos:', {
           count: data.photos.length,
-          firstPhoto: data.photos[0] ? {
-            id: data.photos[0].id,
-            publicId: data.photos[0].publicId,
-            url: data.photos[0].url
-          } : null
+          hasMore: data.hasMore,
+          categories: data.categories
         });
         setPhotos(data.photos);
+        setHasMore(data.hasMore);
+        setAvailableCategories(['all', ...data.categories]);
         hasLoadedPhotos.current = true;
       } catch (err) {
         console.error('Error in fetchPhotos:', {
@@ -95,13 +216,6 @@ export default function PhotoGallery() {
 
     fetchPhotos();
   }, [photos.length, setPhotos]);
-
-  // Get unique categories, filtering out undefined and Thumbnail
-  const categories = ['all', ...new Set(photos
-    .map(photo => photo.category)
-    .filter((category): category is string => 
-      category !== undefined && category.toLowerCase() !== 'thumbnail'
-    ))];
 
   const handlePhotoClick = (photo: Photo) => {
     setSelectedPhoto(photo);
@@ -126,7 +240,8 @@ export default function PhotoGallery() {
   // Filter photos based on selected category
   const filteredPhotos = photos.filter(photo => 
     (selectedCategory === 'all' || photo.category === selectedCategory) &&
-    photo.category?.toLowerCase() !== 'thumbnail'
+    photo.category?.toLowerCase() !== 'thumbnail' &&
+    photo.category?.toLowerCase() !== 'uncategorized'
   );
 
   // 添加重試機制
@@ -180,7 +295,7 @@ export default function PhotoGallery() {
     <>
       {/* Category Filter */}
       <div className="flex flex-wrap gap-2 mb-8 justify-center">
-        {categories.map(category => (
+        {availableCategories.map(category => (
           <button
             key={category}
             onClick={() => {
@@ -198,107 +313,138 @@ export default function PhotoGallery() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {filteredPhotos.map((photo, index) => {
-          const aspectRatio = photo.width / photo.height;
-          const isPortrait = aspectRatio < 1;
-          const isThumbnailLoaded = loadedThumbnails.has(photo.id);
-          const hasFailed = failedThumbnails.has(photo.id);
-          const animationDelay = isInitialLoad ? `${index * 0.1}s` : '0s';
-          const isPriority = index < 6;
-          
-          return (
-            <div
-              key={photo.id}
-              className={`overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 ${
-                isPortrait ? 'sm:col-span-1 sm:row-span-2' : ''
-              }`}
-              style={{
-                opacity: 0,
-                animation: `fadeInUp 0.6s ease-out ${animationDelay} forwards`
-              }}
-              onClick={() => handlePhotoClick(photo)}
-            >
-              <div 
-                className="relative w-full" 
-                style={{ 
-                  aspectRatio: isPortrait ? '2/3' : '4/3',
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none',
-                  WebkitTouchCallout: 'none'
-                }}
-              >
-                <div className={`absolute inset-0 bg-gray-100 transition-opacity duration-500 ${
-                  isThumbnailLoaded ? 'opacity-0' : 'opacity-100'
-                }`} />
-                {hasFailed ? (
-                  renderErrorThumbnail(photo)
-                ) : (
-                  <CldImage
-                    src={photo.publicId}
-                    alt={photo.alt}
-                    fill
-                    priority={isPriority}
-                    className={`object-cover transition-all duration-500 ${
-                      isPortrait ? 'scale-[1.15]' : ''
-                    } ${
-                      isThumbnailLoaded ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    crop="fill"
-                    quality="auto"
-                    format="auto"
-                    loading={isPriority ? "eager" : "lazy"}
-                    onLoad={() => handleThumbnailLoad(photo.id)}
-                    onError={(error) => {
-                      console.error('Error loading thumbnail:', {
-                        photoId: photo.id,
-                        publicId: photo.publicId,
-                        error: error,
-                        timestamp: new Date().toISOString(),
-                        isPriority
-                      });
-                      setFailedThumbnails(prev => new Set([...prev, photo.id]));
+      {isLoadingMore && photos.length === 0 ? (
+        <div className="w-full h-40 flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-[spin_2s_linear_infinite]" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {filteredPhotos.map((photo, index) => {
+              const aspectRatio = photo.width / photo.height;
+              const isPortrait = aspectRatio < 1;
+              const isThumbnailLoaded = loadedThumbnails.has(photo.id);
+              const hasFailed = failedThumbnails.has(photo.id);
+              const animationDelay = isInitialLoad ? `${index * 0.1}s` : '0s';
+              const isPriority = index < 6;
+              
+              // 使用更唯一的 key
+              const uniqueKey = `${photo.id}-${index}`;
+              
+              return (
+                <div
+                  key={uniqueKey}
+                  className={`overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 ${
+                    isPortrait ? 'sm:col-span-1 sm:row-span-2' : ''
+                  }`}
+                  style={{
+                    opacity: 0,
+                    animation: `fadeInUp 0.6s ease-out ${animationDelay} forwards`,
+                    touchAction: 'none' // 防止觸摸拖拽
+                  }}
+                  onClick={() => handlePhotoClick(photo)}
+                >
+                  <div 
+                    className="relative w-full" 
+                    style={{ 
+                      aspectRatio: isPortrait ? '2/3' : '4/3',
+                      userSelect: 'none',
+                      WebkitUserSelect: 'none',
+                      WebkitTouchCallout: 'none',
+                      touchAction: 'none' // 防止觸摸拖拽
                     }}
-                    onTouchStart={(e) => {
-                      e.preventDefault();
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                    }}
-                    onDragStart={(e) => {
-                      e.preventDefault();
-                    }}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                    }}
-                  />
-                )}
-              </div>
-              {photo.description && (
-                <div className="p-4">
-                  <p className="text-sm text-gray-600 line-clamp-2">{photo.description}</p>
+                  >
+                    <div className={`absolute inset-0 bg-gray-100 transition-opacity duration-500 ${
+                      isThumbnailLoaded ? 'opacity-0' : 'opacity-100'
+                    }`} />
+                    {hasFailed ? (
+                      renderErrorThumbnail(photo)
+                    ) : (
+                      <CldImage
+                        src={photo.publicId}
+                        alt={photo.alt || photo.description || 'Photography portfolio image'}
+                        fill
+                        priority={isPriority}
+                        className={`object-cover transition-all duration-500 ${
+                          isPortrait ? 'scale-[1.15]' : ''
+                        } ${
+                          isThumbnailLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        crop="fill"
+                        quality="auto"
+                        format="auto"
+                        loading={isPriority ? "eager" : "lazy"}
+                        onLoad={() => handleThumbnailLoad(photo.id)}
+                        onError={(error) => {
+                          console.error('Error loading thumbnail:', {
+                            photoId: photo.id,
+                            publicId: photo.publicId,
+                            error: error,
+                            timestamp: new Date().toISOString(),
+                            isPriority
+                          });
+                          setFailedThumbnails(prev => new Set([...prev, photo.id]));
+                        }}
+                        style={{
+                          touchAction: 'none',
+                          userSelect: 'none',
+                          WebkitUserSelect: 'none',
+                          WebkitTouchCallout: 'none'
+                        }}
+                        fetchPriority={isPriority ? "high" : "low"}
+                        placeholder="blur"
+                        blurDataURL={`data:image/svg+xml;base64,${Buffer.from(
+                          `<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="300" fill="#f3f4f6"/></svg>`
+                        ).toString('base64')}`}
+                      />
+                    )}
+                  </div>
+                  {photo.description && (
+                    <div className="p-4">
+                      <p className="text-sm text-gray-600 line-clamp-2">{photo.description}</p>
+                    </div>
+                  )}
                 </div>
+              );
+            })}
+          </div>
+
+          {/* Loading indicator */}
+          {hasMore && (
+            <div 
+              ref={observerTarget}
+              className="w-full h-20 flex items-center justify-center"
+            >
+              {isLoadingMore && (
+                <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-[spin_2s_linear_infinite]" />
               )}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
 
       {/* Fullscreen Modal */}
       {selectedPhoto && (
         <div
           className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex items-center justify-center"
           onClick={() => setSelectedPhoto(null)}
+          style={{ touchAction: 'none' }} // 防止觸摸拖拽
         >
-          <div className="relative w-full h-full flex items-center justify-center p-4">
+          <div 
+            className="relative w-full h-full flex items-center justify-center p-4"
+            style={{ touchAction: 'none' }} // 防止觸摸拖拽
+          >
             <button
               className="absolute top-8 right-8 text-gray-900 text-2xl hover:text-gray-600 transition-colors z-50"
               onClick={() => setSelectedPhoto(null)}
             >
               ✕
             </button>
-            <div className="relative w-full h-full max-w-7xl max-h-[calc(100vh-2rem)]">
+            <div 
+              className="relative w-full h-full max-w-7xl max-h-[calc(100vh-2rem)]"
+              style={{ touchAction: 'none' }} // 防止觸摸拖拽
+            >
               {isSpinnerVisible && (
                 <div className={`absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10 transition-opacity duration-300 ${
                   isLoading ? 'opacity-100' : 'opacity-0'
@@ -327,7 +473,7 @@ export default function PhotoGallery() {
               ) : (
                 <CldImage
                   src={selectedPhoto.publicId}
-                  alt={selectedPhoto.alt}
+                  alt={selectedPhoto.alt || selectedPhoto.description || 'Photography portfolio image'}
                   fill
                   className={`object-contain transition-all ${
                     shouldAnimate ? 'duration-1000 ease-out' : 'duration-0'
@@ -350,23 +496,17 @@ export default function PhotoGallery() {
                     setIsSpinnerVisible(false);
                     setFailedThumbnails(prev => new Set([...prev, selectedPhoto.id]));
                   }}
-                  onTouchStart={(e) => {
-                    e.preventDefault();
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                  }}
-                  onDragStart={(e) => {
-                    e.preventDefault();
-                  }}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                  }}
                   style={{
+                    touchAction: 'none',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     WebkitTouchCallout: 'none'
                   }}
+                  fetchPriority="high"
+                  placeholder="blur"
+                  blurDataURL={`data:image/svg+xml;base64,${Buffer.from(
+                    `<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg"><rect width="1200" height="800" fill="#f3f4f6"/></svg>`
+                  ).toString('base64')}`}
                 />
               )}
               {selectedPhoto.description && !failedThumbnails.has(selectedPhoto.id) && (
