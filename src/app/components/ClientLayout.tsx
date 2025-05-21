@@ -144,7 +144,7 @@ function ClientLayoutContent({
           </nav>
           <main className={`transition-all duration-300 ${
             isPortfolioPage ? (isScrolled ? 'pt-10' : 'pt-24') : 'pt-24'
-          } max-w-4xl mx-auto px-4 ${
+          } ${isPortfolioPage ? 'max-w-8xl' : 'max-w-4xl'} mx-auto px-2 sm:px-4 ${
             isPortfolioPage ? 'scrollable' : 'no-scroll'
           }`}>
             {children}

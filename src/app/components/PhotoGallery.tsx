@@ -32,15 +32,161 @@ export default function PhotoGallery() {
   const [loadedThumbnails, setLoadedThumbnails] = useState<Set<string>>(new Set());
   const [failedThumbnails, setFailedThumbnails] = useState<Set<string>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [availableCategories, setAvailableCategories] = useState<string[]>(['all']);
   const hasLoadedPhotos = useRef(false);
   const observerTarget = useRef<HTMLDivElement>(null);
-  const INITIAL_LOAD = 20;  // 初始加載更多照片
-  const LOAD_MORE = 20;     // 後續加載保持較小數量
+  const lastScrollY = useRef(0);
+  const scrollSpeed = useRef(0);
+  const lastScrollTime = useRef(Date.now());
+  const INITIAL_LOAD = 20;
+  const LOAD_MORE = 20;
+  const SCROLL_THRESHOLD = 50; // 降低滾動速度閾值，使預載入更容易觸發
+  const PRELOAD_DISTANCE = 0.5; // 降低預載入觸發距離，提前開始載入
+  const SCROLL_CHECK_INTERVAL = 100; // 滾動檢查間隔（毫秒）
+  const lastScrollCheck = useRef(Date.now());
+
+  // 加載更多照片
+  const loadMorePhotos = useCallback(async () => {
+    if (isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const limit = LOAD_MORE;
+      
+      console.log('Loading more photos, page:', nextPage, 'limit:', limit, 'category:', selectedCategory);
+      const response = await fetch(`/api/photos?page=${nextPage}&limit=${limit}&category=${selectedCategory}&t=${Date.now()}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch more photos: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Successfully loaded more photos:', {
+        count: data.photos.length,
+        hasMore: data.hasMore,
+        currentPage: page,
+        nextPage,
+        timestamp: data.timestamp,
+        totalPhotos: photos.length + data.photos.length,
+        scrollSpeed: scrollSpeed.current
+      });
+
+      // 確保新加載的照片不會與現有照片重複
+      const newPhotos = data.photos.filter(
+        (newPhoto: Photo) => !photos.some(existingPhoto => existingPhoto.id === newPhoto.id)
+      );
+
+      if (newPhotos.length > 0) {
+        setPhotos([...photos, ...newPhotos] as Photo[]);
+        setHasMore(data.hasMore);
+        setPage(nextPage);
+      } else {
+        console.log('No new photos to add');
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('Error loading more photos:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, page, selectedCategory, photos, setPhotos]);
+
+  // 監聽滾動事件
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentTime = Date.now();
+      const currentScrollY = window.scrollY;
+      const timeDiff = currentTime - lastScrollTime.current;
+      
+      // 計算滾動速度（像素/毫秒）
+      scrollSpeed.current = Math.abs(currentScrollY - lastScrollY.current) / timeDiff;
+      
+      // 更新最後的滾動位置和時間
+      lastScrollY.current = currentScrollY;
+      lastScrollTime.current = currentTime;
+
+      // 限制檢查頻率
+      if (currentTime - lastScrollCheck.current < SCROLL_CHECK_INTERVAL) {
+        return;
+      }
+      lastScrollCheck.current = currentTime;
+
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const scrollPosition = window.scrollY + windowHeight;
+      const scrollPercentage = scrollPosition / documentHeight;
+
+      // 優化預載入觸發條件
+      const shouldPreload = (
+        // 基於滾動速度的觸發
+        (scrollSpeed.current > SCROLL_THRESHOLD && scrollPercentage > PRELOAD_DISTANCE) ||
+        // 基於滾動位置的觸發
+        scrollPercentage > PRELOAD_DISTANCE ||
+        // 基於剩餘內容的觸發
+        (documentHeight - scrollPosition) < windowHeight * 2
+      );
+
+      if (shouldPreload && hasMore && !isLoadingMore) {
+        console.log('Preloading triggered:', {
+          speed: scrollSpeed.current,
+          scrollPercentage,
+          hasMore,
+          isLoadingMore,
+          remainingDistance: documentHeight - scrollPosition
+        });
+        loadMorePhotos();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [hasMore, isLoadingMore, loadMorePhotos]);
+
+  // 設置 Intersection Observer
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          // 減少延遲時間，使預載入更快觸發
+          timeoutId = setTimeout(() => {
+            console.log('Intersection observer triggered:', {
+              hasMore,
+              isLoadingMore,
+              currentPage: page,
+              category: selectedCategory,
+              photosCount: photos.length,
+              scrollSpeed: scrollSpeed.current
+            });
+            loadMorePhotos();
+          }, 200); // 減少延遲時間到 200ms
+        }
+      },
+      { 
+        threshold: 0.1,  // 降低閾值，使預載入更容易觸發
+        rootMargin: '400px'  // 增加提前觸發的距離
+      }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [hasMore, isLoadingMore, selectedCategory, loadMorePhotos, page, photos.length]);
 
   // 禁用右鍵選單和拖拽
   useEffect(() => {
@@ -68,49 +214,10 @@ export default function PhotoGallery() {
     };
   }, []);
 
-  // 加載更多照片
-  const loadMorePhotos = useCallback(async () => {
-    if (isLoadingMore) return;
-
-    setIsLoadingMore(true);
-    try {
-      const nextPage = page + 1;
-      const isInitialLoad = page === 1;
-      const limit = isInitialLoad ? INITIAL_LOAD : LOAD_MORE;
-      
-      console.log('Loading more photos, page:', nextPage, 'limit:', limit, 'category:', selectedCategory);
-      const response = await fetch(`/api/photos?page=${nextPage}&limit=${limit}&category=${selectedCategory}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch more photos: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Successfully loaded more photos:', {
-        count: data.photos.length,
-        hasMore: data.hasMore,
-        isInitialLoad,
-        currentPage: page,
-        nextPage
-      });
-
-      // 確保新加載的照片不會與現有照片重複
-      const newPhotos = data.photos.filter(
-        (newPhoto: Photo) => !photos.some(existingPhoto => existingPhoto.id === newPhoto.id)
-      );
-
-      setPhotos((prevPhotos: Photo[]) => [...prevPhotos, ...newPhotos]);
-      setHasMore(data.hasMore);
-      setPage(nextPage);
-    } catch (err) {
-      console.error('Error loading more photos:', err);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [isLoadingMore, page, selectedCategory, photos]);
-
   // 當類別改變時重置分頁
   useEffect(() => {
+    let isMounted = true;  // 添加掛載狀態檢查
+
     const loadCategoryPhotos = async () => {
       // 重置所有相關狀態
       setPage(1);
@@ -119,11 +226,10 @@ export default function PhotoGallery() {
       setLoadedThumbnails(new Set());
       setFailedThumbnails(new Set());
       setPhotos([]); // 清空現有照片
-      setIsInitialLoad(true); // 重置初始加載狀態
 
       try {
         console.log('Loading photos for category:', selectedCategory);
-        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}&category=${selectedCategory}`);
+        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}&category=${selectedCategory}&t=${Date.now()}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch photos: ${response.status}`);
@@ -134,59 +240,39 @@ export default function PhotoGallery() {
           category: selectedCategory,
           count: data.photos.length,
           hasMore: data.hasMore,
-          page: 1
+          page: 1,
+          timestamp: data.timestamp
         });
 
-        if (data.photos && data.photos.length > 0) {
-          setPhotos(data.photos);
-          setHasMore(data.hasMore);
-          hasLoadedPhotos.current = true;
-        } else {
-          console.log('No photos found for category:', selectedCategory);
-          setHasMore(false);
+        if (isMounted) {  // 只在組件仍然掛載時更新狀態
+          if (data.photos && data.photos.length > 0) {
+            setPhotos(data.photos);
+            setHasMore(data.hasMore);
+            hasLoadedPhotos.current = true;
+          } else {
+            console.log('No photos found for category:', selectedCategory);
+            setHasMore(false);
+          }
         }
       } catch (err) {
         console.error('Error loading category photos:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load photos');
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load photos');
+        }
       } finally {
-        setIsLoadingMore(false);
+        if (isMounted) {
+          setIsLoadingMore(false);
+        }
       }
     };
 
     loadCategoryPhotos();
-  }, [selectedCategory, setPhotos]);
 
-  // 設置 Intersection Observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          console.log('Intersection observer triggered:', {
-            hasMore,
-            isLoadingMore,
-            currentPage: page,
-            category: selectedCategory
-          });
-          loadMorePhotos();
-        }
-      },
-      { 
-        threshold: 0.1,
-        rootMargin: '100px'  // 提前 100px 觸發加載
-      }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
+    // 清理函數
     return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
+      isMounted = false;
     };
-  }, [hasMore, isLoadingMore, selectedCategory, loadMorePhotos, page]);
+  }, [selectedCategory, setPhotos]);
 
   // 初始加載照片
   useEffect(() => {
@@ -197,7 +283,7 @@ export default function PhotoGallery() {
 
       try {
         console.log('Fetching initial photos...');
-        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}`);
+        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}&t=${Date.now()}`);
         if (!response.ok) {
           const errorData = await response.json().catch(() => null);
           console.error('Failed to fetch photos:', {
@@ -211,7 +297,8 @@ export default function PhotoGallery() {
         console.log('Successfully fetched initial photos:', {
           count: data.photos.length,
           hasMore: data.hasMore,
-          categories: data.categories
+          categories: data.categories,
+          timestamp: data.timestamp
         });
         setPhotos(data.photos);
         setHasMore(data.hasMore);
@@ -252,6 +339,11 @@ export default function PhotoGallery() {
       newSet.add(photoId);
       return newSet;
     });
+    // 添加動畫類
+    const element = document.getElementById(`photo-${photoId}`);
+    if (element) {
+      element.style.animation = `fadeInUp 0.6s ease-out forwards`;
+    }
   };
 
   // Filter photos based on selected category
@@ -317,7 +409,6 @@ export default function PhotoGallery() {
             key={category}
             onClick={() => {
               setSelectedCategory(category);
-              setIsInitialLoad(false);
             }}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
               selectedCategory === category
@@ -342,7 +433,6 @@ export default function PhotoGallery() {
               const isPortrait = aspectRatio < 1;
               const isThumbnailLoaded = loadedThumbnails.has(photo.id);
               const hasFailed = failedThumbnails.has(photo.id);
-              const animationDelay = isInitialLoad ? `${index * 0.1}s` : '0s';
               const isPriority = index < 6;
               
               // 使用更唯一的 key
@@ -351,12 +441,12 @@ export default function PhotoGallery() {
               return (
                 <div
                   key={uniqueKey}
+                  id={`photo-${photo.id}`}
                   className={`overflow-hidden rounded-lg shadow-lg bg-white hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:scale-105 ${
                     isPortrait ? 'sm:col-span-1 sm:row-span-2' : ''
                   }`}
                   style={{
                     opacity: 0,
-                    animation: `fadeInUp 0.6s ease-out ${animationDelay} forwards`,
                     touchAction: 'none' // 防止觸摸拖拽
                   }}
                   onClick={() => handlePhotoClick(photo)}

@@ -42,6 +42,7 @@ export async function GET(request: Request) {
       .expression('folder:portfolio/*')
       .sort_by('created_at', 'desc')
       .max_results(500)
+      .with_field('context')
       .execute();
 
     console.log('Cloudinary search result:', {
@@ -118,11 +119,13 @@ export async function GET(request: Request) {
       photos: paginatedPhotos,
       hasMore,
       total: filteredPhotos.length,
-      categories: allCategories
+      categories: allCategories,
+      timestamp: Date.now()
     }, {
       headers: {
         'Cache-Control': 'no-store, must-revalidate',
-        'Pragma': 'no-cache'
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
   } catch (error) {
