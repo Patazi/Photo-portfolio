@@ -447,7 +447,7 @@ export default function PhotoGallery() {
                   }`}
                   style={{
                     opacity: 0,
-                    touchAction: 'none' // 防止觸摸拖拽
+                    touchAction: 'pan-y' // 允許垂直滾動
                   }}
                   onClick={() => handlePhotoClick(photo)}
                 >
@@ -458,7 +458,7 @@ export default function PhotoGallery() {
                       userSelect: 'none',
                       WebkitUserSelect: 'none',
                       WebkitTouchCallout: 'none',
-                      touchAction: 'pan-y' // 允許垂直滾動，但防止水平拖拽
+                      touchAction: 'pan-y' // 允許垂直滾動
                     }}
                   >
                     <div className={`absolute inset-0 bg-gray-100 transition-opacity duration-500 ${
@@ -497,7 +497,7 @@ export default function PhotoGallery() {
                           setFailedThumbnails(prev => new Set([...prev, photo.id]));
                         }}
                         style={{
-                          touchAction: 'none',
+                          touchAction: 'pan-y', // 允許垂直滾動
                           userSelect: 'none',
                           WebkitUserSelect: 'none',
                           WebkitTouchCallout: 'none'
