@@ -100,9 +100,7 @@ function ClientLayoutContent({
               <div className="h-full flex items-center justify-between">
                 <Link 
                   href="/" 
-                  className={`text-2xl font-extrabold tracking-wider text-gray-900 select-none relative after:content-[''] after:block after:w-0 after:h-0.5 after:bg-gray-900 after:transition-all after:duration-300 hover:after:h-0.5 hover:after:bg-gradient-to-r hover:after:from-gray-900 hover:after:to-gray-700 after:origin-left ${
-                    isScrolled && isPortfolioPage ? 'hover:after:w-[var(--pearce-width)]' : 'hover:after:w-full'
-                  }`}
+                  className={`text-2xl font-extrabold tracking-wider text-gray-900 select-none relative after:content-[''] after:block after:h-[3px] after:bg-gradient-to-r after:from-gray-900 after:to-gray-700 after:transition-all after:duration-300 after:w-0 hover:after:w-full`}
                   style={{
                     '--pearce-width': `${pearceWidth}px`
                   } as React.CSSProperties}
@@ -112,13 +110,13 @@ function ClientLayoutContent({
                 <div className="flex items-center gap-6">
                   <Link 
                     href="/portfolio" 
-                    className={`relative text-gray-900 font-medium after:content-[''] after:block after:w-0 after:h-0.5 after:bg-gray-900 after:transition-all after:duration-300 hover:after:w-full hover:after:h-0.5 hover:after:bg-gradient-to-r hover:after:from-gray-900 hover:after:to-gray-700 transition-opacity duration-300 flex items-center h-full ${
+                    className={`relative text-gray-900 font-medium after:content-[' '] after:absolute after:left-0 after:bottom-0 after:h-0.5 after:bg-gradient-to-r after:from-gray-900 after:to-gray-700 after:transition-all after:duration-300 after:w-0 hover:after:w-full transition-opacity duration-300 flex items-center h-full ${
                       isScrolled && isPortfolioPage ? 'opacity-0' : 'opacity-100'
                     }`}
                   >
                     Portfolio
                   </Link>
-                  <Link href="/contact" className="relative text-gray-900 font-medium after:content-[''] after:block after:w-0 after:h-0.5 after:bg-gray-900 after:transition-all after:duration-300 hover:after:w-full hover:after:h-0.5 hover:after:bg-gradient-to-r hover:after:from-gray-900 hover:after:to-gray-700 flex items-center h-full">
+                  <Link href="/contact" className="relative text-gray-900 font-medium after:content-[' '] after:absolute after:left-0 after:bottom-0 after:h-0.5 after:bg-gradient-to-r after:from-gray-900 after:to-gray-700 after:transition-all after:duration-300 after:w-0 hover:after:w-full flex items-center h-full">
                     Contact
                   </Link>
                   <a href="https://instagram.com/tzehowlee" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="group flex items-center h-full">
