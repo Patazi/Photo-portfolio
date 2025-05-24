@@ -47,53 +47,168 @@ export default function PhotoGallery() {
   const PRELOAD_DISTANCE = 0.5; // 降低預載入觸發距離，提前開始載入
   const SCROLL_CHECK_INTERVAL = 100; // 滾動檢查間隔（毫秒）
   const lastScrollCheck = useRef(Date.now());
+  
+  // 新增：用於存儲每個類別的照片緩存
+  const [categoryCache, setCategoryCache] = useState<Record<string, {
+    photos: Photo[];
+    hasMore: boolean;
+    total: number;
+  }>>({});
 
-  // 加載更多照片
+  // 修改：當類別改變時重置分頁
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCategoryPhotos = async () => {
+      // 檢查緩存中是否已有該類別的照片
+      if (categoryCache[selectedCategory]) {
+        console.log('Using cached photos for category:', selectedCategory);
+        setPhotos(categoryCache[selectedCategory].photos);
+        setHasMore(categoryCache[selectedCategory].hasMore);
+        setIsLoadingMore(false);
+        return;
+      }
+
+      // 檢查是否所有照片都已經從 'all' 類別中載入
+      if (selectedCategory !== 'all' && categoryCache['all']) {
+        const allPhotos = categoryCache['all'].photos;
+        const categoryPhotos = allPhotos.filter(photo => photo.category === selectedCategory);
+        
+        if (categoryPhotos.length > 0) {
+          console.log('Using photos from all category for:', selectedCategory);
+          setPhotos(categoryPhotos);
+          setHasMore(false); // 因為我們已經有了所有照片
+          setIsLoadingMore(false);
+          
+          // 將過濾後的照片存入緩存
+          setCategoryCache((prev: Record<string, {
+            photos: Photo[];
+            hasMore: boolean;
+            total: number;
+          }>) => ({
+            ...prev,
+            [selectedCategory]: {
+              photos: categoryPhotos,
+              hasMore: false,
+              total: categoryPhotos.length
+            }
+          }));
+          return;
+        }
+      }
+
+      // 重置所有相關狀態
+      setPage(1);
+      setHasMore(true);
+      setIsLoadingMore(true);
+      setLoadedThumbnails(new Set());
+      setFailedThumbnails(new Set());
+      setPhotos([]);
+
+      try {
+        console.log('Loading photos for category:', selectedCategory);
+        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}&category=${selectedCategory}&t=${Date.now()}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch photos: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Successfully loaded category photos:', {
+          category: selectedCategory,
+          count: data.photos.length,
+          hasMore: data.hasMore,
+          page: 1,
+          timestamp: data.timestamp
+        });
+
+        if (isMounted) {
+          if (data.photos && data.photos.length > 0) {
+            setPhotos(data.photos as Photo[]);
+            setHasMore(data.hasMore);
+            hasLoadedPhotos.current = true;
+            
+            // 將新載入的照片存入緩存
+            setCategoryCache((prev: Record<string, {
+              photos: Photo[];
+              hasMore: boolean;
+              total: number;
+            }>) => ({
+              ...prev,
+              [selectedCategory]: {
+                photos: data.photos as Photo[],
+                hasMore: data.hasMore,
+                total: data.total
+              }
+            }));
+          } else {
+            console.log('No photos found for category:', selectedCategory);
+            setHasMore(false);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading category photos:', err);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load photos');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingMore(false);
+        }
+      }
+    };
+
+    loadCategoryPhotos();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCategory, setPhotos, categoryCache]);
+
+  // 修改：載入更多照片的函數
   const loadMorePhotos = useCallback(async () => {
-    if (isLoadingMore) return;
+    if (isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
+    const nextPage = page + 1;
+
     try {
-      const nextPage = page + 1;
-      const limit = LOAD_MORE;
-      
-      console.log('Loading more photos, page:', nextPage, 'limit:', limit, 'category:', selectedCategory);
-      const response = await fetch(`/api/photos?page=${nextPage}&limit=${limit}&category=${selectedCategory}&t=${Date.now()}`);
-      
+      const response = await fetch(`/api/photos?page=${nextPage}&limit=${LOAD_MORE}&category=${selectedCategory}&t=${Date.now()}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch more photos: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Successfully loaded more photos:', {
-        count: data.photos.length,
-        hasMore: data.hasMore,
-        currentPage: page,
-        nextPage,
-        timestamp: data.timestamp,
-        totalPhotos: photos.length + data.photos.length,
-        scrollSpeed: scrollSpeed.current
-      });
-
-      // 確保新加載的照片不會與現有照片重複
-      const newPhotos = data.photos.filter(
-        (newPhoto: Photo) => !photos.some(existingPhoto => existingPhoto.id === newPhoto.id)
-      );
-
-      if (newPhotos.length > 0) {
-        setPhotos([...photos, ...newPhotos] as Photo[]);
+      
+      if (data.photos && data.photos.length > 0) {
+        const newPhotos = [...photos, ...data.photos] as Photo[];
+        setPhotos(newPhotos);
         setHasMore(data.hasMore);
         setPage(nextPage);
+        
+        // 更新緩存中的照片
+        setCategoryCache((prev: Record<string, {
+          photos: Photo[];
+          hasMore: boolean;
+          total: number;
+        }>) => ({
+          ...prev,
+          [selectedCategory]: {
+            photos: newPhotos,
+            hasMore: data.hasMore,
+            total: data.total
+          }
+        }));
       } else {
-        console.log('No new photos to add');
         setHasMore(false);
       }
     } catch (err) {
       console.error('Error loading more photos:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load more photos');
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, page, selectedCategory, photos, setPhotos]);
+  }, [isLoadingMore, hasMore, page, selectedCategory, setPhotos, photos]);
 
   // 監聽滾動事件
   useEffect(() => {
@@ -213,66 +328,6 @@ export default function PhotoGallery() {
       document.removeEventListener('touchstart', handleTouchStart);
     };
   }, []);
-
-  // 當類別改變時重置分頁
-  useEffect(() => {
-    let isMounted = true;  // 添加掛載狀態檢查
-
-    const loadCategoryPhotos = async () => {
-      // 重置所有相關狀態
-      setPage(1);
-      setHasMore(true);
-      setIsLoadingMore(true);
-      setLoadedThumbnails(new Set());
-      setFailedThumbnails(new Set());
-      setPhotos([]); // 清空現有照片
-
-      try {
-        console.log('Loading photos for category:', selectedCategory);
-        const response = await fetch(`/api/photos?page=1&limit=${INITIAL_LOAD}&category=${selectedCategory}&t=${Date.now()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch photos: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('Successfully loaded category photos:', {
-          category: selectedCategory,
-          count: data.photos.length,
-          hasMore: data.hasMore,
-          page: 1,
-          timestamp: data.timestamp
-        });
-
-        if (isMounted) {  // 只在組件仍然掛載時更新狀態
-          if (data.photos && data.photos.length > 0) {
-            setPhotos(data.photos);
-            setHasMore(data.hasMore);
-            hasLoadedPhotos.current = true;
-          } else {
-            console.log('No photos found for category:', selectedCategory);
-            setHasMore(false);
-          }
-        }
-      } catch (err) {
-        console.error('Error loading category photos:', err);
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load photos');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingMore(false);
-        }
-      }
-    };
-
-    loadCategoryPhotos();
-
-    // 清理函數
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedCategory, setPhotos]);
 
   // 初始加載照片
   useEffect(() => {
@@ -421,7 +476,7 @@ export default function PhotoGallery() {
         ))}
       </div>
 
-      {isLoadingMore && photos.length === 0 ? (
+      {isLoadingMore && !categoryCache[selectedCategory] && photos.length === 0 ? (
         <div className="w-full h-40 flex items-center justify-center">
           <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-[spin_2s_linear_infinite]" />
         </div>

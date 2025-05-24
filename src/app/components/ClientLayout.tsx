@@ -49,6 +49,17 @@ function ClientLayoutContent({
           const randomIndex = Math.floor(Math.random() * data.photos.length);
           if (isMounted) {
             setThumbnailPhoto(data.photos[randomIndex]);
+            
+            // 預先載入水平和垂直縮圖
+            const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+            const preloadImage = (type: string) => {
+              const img = new Image();
+              img.src = `https://res.cloudinary.com/${cloudName}/image/upload/portfolio/Thumbnail/${type}`;
+            };
+            
+            // 同時預載入兩種尺寸的縮圖
+            preloadImage('horizontal');
+            preloadImage('vertical');
           }
         }
       } catch (error) {
