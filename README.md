@@ -156,4 +156,4 @@ npm run dev
 
 ## 授權
 
-© 2024 Pearce Lee. All rights reserved.
+© 2025 Pearce Lee. All rights reserved.
